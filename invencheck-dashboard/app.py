@@ -19,8 +19,7 @@ st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker",
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 3.75rem;
-            max-width: 1280px;
+            padding-top: 3rem;
         }
     </style>
     """, 
