@@ -11,12 +11,14 @@ key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
 # --- Page setup ---
-st.set_page_config(page_title="InvenCheck Attendance Tracker", layout="wide")
+st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker", 
+                   page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png", 
+                   layout="centered")
 
 # --- Top bar with logo ---
 st.markdown(
     """
-    <div style="background-color:#0033a0;padding:5px 15px;display:flex;align-items:center">
+    <div style="background-color:#0033a0;padding:0px 15px;display:flex;align-items:center">
         <img src="https://invensense.tdk.com/wp-content/themes/invensense/images/tdk-white-logo.svg" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
@@ -72,12 +74,12 @@ for table in [present_employees_display, last_entries_today_display, display_df]
 
 # --- Counters and refresh ---
 col1, col2, col3 = st.columns([2, 2, 1])
-col1.metric("🟢 Employees In The Office", len(present_employees))
-col2.metric("📅 Checked In Today", df_today[df_today["action"] == "check_in"]["user_id"].nunique())
+col1.metric("🟢 Employees In The Office", len(present_employees), border=True)
+col2.metric("📅 Checked In Today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
 # --- Manual refresh button ---
 with col3:
-    if st.button("🔄 Refresh"):
+    if st.button("Refresh", icon=":material/refresh:", type="primary"):
         st.cache_data.clear()
         st.rerun()
 
