@@ -13,7 +13,18 @@ supabase: Client = create_client(url, key)
 # --- Page setup ---
 st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker", 
                    page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png", 
-                   layout="centered")
+                   layout="centered",
+                   menu_items={'About': "### TDK InvenCheck - DM 2025"})
+
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 3.75rem;
+            max-width: 1280px;
+        }
+    </style>
+    """, 
+    unsafe_allow_html=True)
 
 # --- Top bar with logo ---
 st.markdown(
@@ -73,7 +84,7 @@ for table in [present_employees_display, last_entries_today_display, display_df]
     table["Timestamp"] = table["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
 
 # --- Counters and refresh ---
-col1, col2, col3 = st.columns([2, 2, 1])
+col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="center")
 col1.metric("🟢 Employees In The Office", len(present_employees), border=True)
 col2.metric("📅 Checked In Today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
@@ -88,10 +99,10 @@ with col3:
 tabs = st.tabs(["Currently in the Office", "Attendance Today", "All Entries"])
 
 with tabs[0]:
-    st.dataframe(present_employees_display, use_container_width=True)
+    st.dataframe(present_employees_display, hide_index=True, use_container_width=True)
 
 with tabs[1]:
-    st.dataframe(last_entries_today_display, use_container_width=True)
+    st.dataframe(last_entries_today_display, hide_index=True, use_container_width=True)
 
 with tabs[2]:
     st.dataframe(display_df, use_container_width=True)
