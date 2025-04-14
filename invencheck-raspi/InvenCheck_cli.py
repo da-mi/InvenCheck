@@ -1,5 +1,6 @@
 import requests
-from datetime import datetime
+from datetime import datetime, time
+import pytz
 import sys, os
 from dotenv import load_dotenv
 
@@ -40,12 +41,20 @@ def clear_tty(tty="/dev/tty1"):
         f.write("\033c")
 
 def get_last_action_today(user_id):
-    today = datetime.utcnow().date().isoformat()
+    rome = pytz.timezone("Europe/Rome")
+    
+    # Get today's date in Europe/Rome and local midnight time
+    local_midnight = rome.localize(datetime.combine(datetime.now(rome).date(), time.min))
+    
+    # Convert Rome midnight to UTC for Supabase query
+    utc_cutoff = local_midnight.astimezone(pytz.utc).isoformat().replace("+00:00", "Z")
+
     url = (
         f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}"
-        f"?user_id=eq.{user_id}&timestamp=gte.{today}T00:00:00.000Z"
+        f"?user_id=eq.{user_id}&timestamp=gte.{utc_cutoff}"
         f"&order=timestamp.desc&limit=1"
     )
+
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
         data = response.json()
@@ -56,6 +65,7 @@ def get_last_action_today(user_id):
     else:
         print(f"[ERROR] Failed to query Supabase: {response.text}")
         return None
+
 
 def send_event(user_id, action, door_id):
     payload = {
