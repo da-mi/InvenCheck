@@ -37,7 +37,21 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 # --- Load data ---
+@st.cache_data(ttl=60)
+def load_device_status():
+    response = supabase.table("devices").select("device_id, timestamp").execute()
+    df = pd.DataFrame(response.data)
+    if df.empty:
+        return pd.DataFrame(columns=["device_id", "timestamp", "status", "last_seen"])
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    now = datetime.now(pytz.UTC)
+    df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1200 else "🔴 Offline")
+    df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
+    return df[["device_id", "status", "last_seen"]]
+
 @st.cache_data(ttl=300)
 def load_attendance():
     response = supabase.table("attendance").select("*").execute()
@@ -45,9 +59,19 @@ def load_attendance():
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome")
     return df.sort_values("timestamp", ascending=False)
 
-
-
 df = load_attendance()
+
+# --- Device panel ---
+with st.expander("📡 Device Connection Status", expanded=False):
+    device_df = load_device_status()
+    if device_df.empty:
+        st.warning("No device heartbeat data available.")
+    else:
+        st.dataframe(device_df.rename(columns={
+            "device_id": "Device",
+            "status": "Status",
+            "last_seen": "Last Seen"
+        }), hide_index=True, use_container_width=True)
 
 # --- Prepare derived tables ---
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
