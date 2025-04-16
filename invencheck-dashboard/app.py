@@ -62,7 +62,7 @@ def load_attendance():
 df = load_attendance()
 
 # --- Device panel ---
-with st.expander("📡 Device Connection Status", expanded=False):
+with st.expander("🛜 Device Connection Status", expanded=False):
     device_df = load_device_status()
     if device_df.empty:
         st.warning("No device heartbeat data available.")
@@ -108,7 +108,7 @@ for table in [present_employees_display, last_entries_today_display, display_df]
 
 # --- Counters and refresh ---
 col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="center")
-col1.metric("🟢 Employees In The Office", len(present_employees), border=True)
+col1.metric("🙋🏻‍♂️ Employees In The Office", len(present_employees), border=True)
 col2.metric("📅 Checked In Today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
 # --- Manual refresh button ---
