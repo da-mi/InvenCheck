@@ -8,7 +8,6 @@ from datetime import datetime
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 
-
 supabase: Client = create_client(url, key)
 
 # --- Page setup ---
@@ -54,7 +53,9 @@ def load_device_status():
 
 def load_users():
     response = supabase.table("users").select("uid, user_id, timestamp").execute()
-    return pd.DataFrame(response.data)
+    df = pd.DataFrame(response.data)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    return df
 
 @st.cache_data(ttl=300)
 def load_attendance():
@@ -173,7 +174,7 @@ present_employees = (
 )
 present_employees = present_employees[present_employees["action"] == "check_in"]
 present_employees_display = present_employees[["user_id", "device_id", "timestamp"]]
-present_employees_display.columns = ["Employee", "Door", "Last Check-in"]
+present_employees_display.columns = ["Employee", "Entrance", "Last Check-in"]
 present_employees_display["Last Check-in"] = present_employees_display["Last Check-in"].dt.strftime("%Y-%m-%d %H:%M")
 
 # --- Counters and refresh ---
@@ -214,6 +215,6 @@ with tabs[1]:
 
 with tabs[2]:
     display_df = df[["user_id", "device_id", "timestamp", "action"]]
-    display_df.columns = ["Employee", "Door", "Timestamp", "Action"]
+    display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
     st.dataframe(display_df, use_container_width=True)
