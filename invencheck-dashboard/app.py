@@ -8,12 +8,13 @@ from datetime import datetime
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 
+
 supabase: Client = create_client(url, key)
 
 # --- Page setup ---
 st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker", 
                    page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png", 
-                   layout="wide",
+                   layout="centered",
                    menu_items={'About': "### TDK InvenCheck - DM 2025"})
 
 st.markdown("""
@@ -51,6 +52,10 @@ def load_device_status():
     df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
     return df[["device_id", "location", "status", "last_seen"]]
 
+def load_users():
+    response = supabase.table("users").select("user_id").execute()
+    return pd.DataFrame(response.data)
+
 @st.cache_data(ttl=300)
 def load_attendance():
     response = supabase.table("attendance").select("*").execute()
@@ -58,10 +63,34 @@ def load_attendance():
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome")
     return df.sort_values("timestamp", ascending=False)
 
+
 df = load_attendance()
 
+
+
+# --- Manual Check-in/Check-out ---
+st.sidebar.subheader(":material/table_edit: Manual Entry ")
+users_df = load_users()
+user_names = users_df["user_id"].tolist()
+selected_user = st.sidebar.selectbox("Select Employee", user_names)
+action = st.sidebar.radio("Action", ["Check-in", "Check-out"], horizontal=True)
+submit = st.sidebar.button("Submit", icon=":material/send:", type="primary")
+
+if submit:
+    selected_id = users_df[users_df["user_id"] == selected_user]["user_id"].values[0]
+    now = datetime.now(pytz.UTC)
+    supabase.table("attendance").insert({
+        "user_id": selected_id,
+        "action": action.lower().replace('-','_'),
+        "timestamp": now.isoformat(),
+        "device_id": "Manual"
+    }).execute()
+    st.sidebar.success(f"{action.replace('_', ' ').title()} recorded for {selected_user}")
+    st.cache_data.clear()
+    st.rerun()
+
 # --- Sidebar: Device panel ---
-st.sidebar.subheader("🛜 Device Connection")
+st.sidebar.subheader(":material/cloud_upload: Device Connection")
 device_df = load_device_status()
 if device_df.empty:
     st.sidebar.warning("No device heartbeat data available.")
@@ -72,6 +101,8 @@ else:
         "status": "Status",
         "last_seen": "Last seen"
     }), column_config={'Last seen':None}, hide_index=True, use_container_width=True)
+
+
 
 # --- Present employees (always based on today) ---
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
