@@ -70,7 +70,7 @@ df = load_attendance()
 
 
 # --- Manual Check-in/Check-out ---
-st.sidebar.header(":material/manage_accounts: Admin panel")
+st.sidebar.header(":material/settings: Admin panel")
 st.sidebar.divider()
 st.sidebar.subheader(":material/table_edit: Manual Entry ")
 users_df = load_users().sort_values("user_id")
@@ -105,7 +105,7 @@ if not recent_unknowns.empty:
     selected_label = st.sidebar.selectbox("Select Unknown UID", unknown_options)
     selected_uid = selected_label.split(" ")[0]
     new_user_id = st.sidebar.text_input("Assign New User ID")
-    assign = st.sidebar.button("Assign ID", icon=":material/badge:", type="primary", disabled=False if new_user_id else True)
+    assign = st.sidebar.button("Assign ID", icon=":material/nfc:", type="primary", disabled=False if new_user_id else True)
 
     if assign and new_user_id:
         supabase.table("users").update({"user_id": new_user_id}).eq("uid", selected_uid).execute()
