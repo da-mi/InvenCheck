@@ -14,10 +14,10 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
 ATTENDANCE_TABLE = "attendance"
-EMPLOYEES_TABLE = "employees"
-STATUS_TABLE = "devices"
+EMPLOYEES_TABLE = "users"
+DEVICES_TABLE = "devices"
 
-DOOR_ID = "Ingresso A10"
+DEVICE_ID = socket.gethostname()
 BUZZER_PIN = 24
 LED_PIN = 23
 DB_PING_INTERVAL = 1200  # Every hour
@@ -127,7 +127,7 @@ def get_employee_by_uid(uid):
     return None
 
 def register_unknown_employee(uid):
-    payload = {"uid": str(uid), "name": "Unknown"}
+    payload = {"uid": str(uid), "user_id": "Unknown"}
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
         print(f"[INFO] Unknown employee with UID {uid} registered.")
@@ -152,12 +152,12 @@ def get_last_action_today(user_id):
         print(f"[ERROR] Failed to query Supabase: {response.text}")
         return None
 
-def send_event(user_id, action, door_id):
+def send_event(user_id, action, device_id):
     payload = {
         "user_id": user_id,
         "timestamp": datetime.utcnow().isoformat(),
         "action": action,
-        "door_id": door_id
+        "device_id": device_id
     }
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
@@ -181,13 +181,13 @@ def send_device_heartbeat():
         payload = {"timestamp": datetime.utcnow().isoformat()}
         try:
             response = requests.patch(
-                f"{SUPABASE_URL}/rest/v1/{STATUS_TABLE}?device_id=eq.{DOOR_ID}",
+                f"{SUPABASE_URL}/rest/v1/{DEVICES_TABLE}?device_id=eq.{DEVICE_ID}",
                 headers=HEADERS,
                 json=payload
             )
             if response.status_code == 404 or (response.status_code == 200 and not response.json()):
-                payload["device_id"] = DOOR_ID
-                response = requests.post(f"{SUPABASE_URL}/rest/v1/{STATUS_TABLE}", headers=HEADERS, json=payload)
+                payload["device_id"] = DEVICE_ID
+                response = requests.post(f"{SUPABASE_URL}/rest/v1/{DEVICES_TABLE}", headers=HEADERS, json=payload)
                 if response.status_code not in (200, 201):
                     print(f"[WARN] Failed to insert device: {response.text}")
             elif response.status_code not in (200, 204):
@@ -226,17 +226,17 @@ def main_loop():
                 if not employee:
                     continue
 
-            if employee['name'] == "Unknown":
+            if employee['user_id'] == "Unknown":
                 print("[INFO] Unknown user!")
                 error_beep()
                 continue
 
-            user_id = employee["name"]
+            user_id = employee["user_id"]
             last_action = get_last_action_today(user_id)
             action = "check_out" if last_action == "check_in" else "check_in"
 
-            print(f"Processing {action} for {user_id} at {DOOR_ID}")
-            send_event(user_id, action, DOOR_ID)
+            print(f"Processing {action} for {user_id} at {DEVICE_ID}")
+            send_event(user_id, action, DEVICE_ID)
             t.sleep(0.1)
 
         except Exception as e:
