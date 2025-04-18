@@ -53,7 +53,7 @@ def load_device_status():
     return df[["device_id", "location", "status", "last_seen"]]
 
 def load_users():
-    response = supabase.table("users").select("user_id").execute()
+    response = supabase.table("users").select("uid, user_id, timestamp").execute()
     return pd.DataFrame(response.data)
 
 @st.cache_data(ttl=300)
@@ -69,15 +69,18 @@ df = load_attendance()
 
 
 # --- Manual Check-in/Check-out ---
+st.sidebar.header(":material/manage_accounts: Admin panel")
+st.sidebar.divider()
 st.sidebar.subheader(":material/table_edit: Manual Entry ")
-users_df = load_users()
-user_names = users_df["user_id"].tolist()
+users_df = load_users().sort_values("user_id")
+filtered_users = users_df[users_df["user_id"].str.lower() != "unknown"]
+user_names = filtered_users["user_id"].tolist()
 selected_user = st.sidebar.selectbox("Select Employee", user_names)
 action = st.sidebar.radio("Action", ["Check-in", "Check-out"], horizontal=True)
 submit = st.sidebar.button("Submit", icon=":material/send:", type="primary")
 
 if submit:
-    selected_id = users_df[users_df["user_id"] == selected_user]["user_id"].values[0]
+    selected_id = filtered_users[filtered_users["user_id"] == selected_user]["user_id"].values[0]
     now = datetime.now(pytz.UTC)
     supabase.table("attendance").insert({
         "user_id": selected_id,
@@ -89,7 +92,61 @@ if submit:
     st.cache_data.clear()
     st.rerun()
 
+st.sidebar.divider()
+# --- Unknown user assignment ---
+st.sidebar.subheader(":material/person_add: Assign new Tag")
+now = datetime.now(pytz.UTC)
+recent_unknowns = users_df[(users_df["user_id"].str.lower() == "unknown") & ((now - pd.to_datetime(users_df["timestamp"], utc=True)).dt.total_seconds() < 600)]
+
+if not recent_unknowns.empty:
+    recent_unknowns["time_ago"] = (now - pd.to_datetime(recent_unknowns["timestamp"], utc=True)).apply(lambda x: f"{int(x.total_seconds() // 60)} min ago")
+    unknown_options = [f"{row['uid']} ({row['time_ago']})" for _, row in recent_unknowns.iterrows()]
+    selected_label = st.sidebar.selectbox("Select Unknown UID", unknown_options)
+    selected_uid = selected_label.split(" ")[0]
+    new_user_id = st.sidebar.text_input("Assign New User ID")
+    assign = st.sidebar.button("Assign ID", icon=":material/badge:", type="primary", disabled=False if new_user_id else True)
+
+    if assign and new_user_id:
+        supabase.table("users").update({"user_id": new_user_id}).eq("uid", selected_uid).execute()
+        st.sidebar.success(f"Updated UID {selected_uid} with User ID '{new_user_id}'")
+        st.cache_data.clear()
+        st.rerun()
+else:
+    st.sidebar.selectbox("Select Unknown Tag UID (last 10min)", ["No recent unknown users"], disabled=True)
+    st.sidebar.text_input("Assign New User Name to Tag UID", disabled=True)
+    st.sidebar.button("Assign ID", icon=":material/nfc:", type="primary", disabled=True)
+
+# --- Delete user ---
+st.sidebar.divider()
+st.sidebar.subheader(":material/person_remove: Remove Tag")
+deletable_users = users_df[users_df["user_id"].str.lower() != "unknown"]["user_id"].unique().tolist()
+user_to_delete = st.sidebar.selectbox("Select User ID to remove", deletable_users)
+
+if "reset_confirm" not in st.session_state:
+    st.session_state.reset_confirm = False
+    st.session_state.confirm_delete = False
+if st.session_state.reset_confirm:
+    st.session_state.confirm_delete = False
+    st.session_state.reset_confirm = False
+
+confirm_delete = st.sidebar.checkbox(":material/warning: Confirm removal", key="confirm_delete")
+
+delete = st.sidebar.button(":material/nfc_off: Remove ID", type="primary", disabled=not confirm_delete)
+if delete:
+    if st.session_state.get("confirm_delete", False):
+        supabase.table("users").delete().eq("user_id", user_to_delete).execute()
+        st.sidebar.success("User deleted")
+        st.cache_data.clear()
+        st.session_state.reset_confirm = True
+        st.rerun()
+    else:
+        st.sidebar.warning("Please confirm deletion first.")
+
+
+
+
 # --- Sidebar: Device panel ---
+st.sidebar.divider()
 st.sidebar.subheader(":material/cloud_upload: Device Connection")
 device_df = load_device_status()
 if device_df.empty:
