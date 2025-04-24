@@ -112,7 +112,10 @@ def has_internet():
 def get_employee_by_uid(uid):
     if str(uid) in employee_cache:
         print(f"[INFO] Tag UID {uid} already in local cache.")
-        return employee_cache[str(uid)]
+        if employee_cache[str(uid)]["user_id"] == "Unknown":
+            print(f"[INFO] Tag UID {uid} is in local cache but Unknown, check if database has been updated.")
+        else:
+            return employee_cache[str(uid)]
 
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}"
     response = requests.get(url, headers=HEADERS)
@@ -120,7 +123,7 @@ def get_employee_by_uid(uid):
         data = response.json()
         if data:
             employee_cache[str(uid)] = data[0]
-            print(f"[INFO] Tag UID {uid} not in local cache.")
+            print(f"[INFO] Tag UID {uid} fetched from remote database.")
             return data[0]
     else:
         print(f"[ERROR] Failed to fetch employee: {response.text}")
