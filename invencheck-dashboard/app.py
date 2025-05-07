@@ -1,33 +1,32 @@
+"""
+InvenCheck - WebApp interface
+Streamlit interface to Supabase database.
+
+Damiano Milani 2025
+"""
+
 import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 import pytz
 from datetime import datetime
 
-# --- Load Supabase credentials ---
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
 
-supabase: Client = create_client(url, key)
-
+##### [PAGE SETTINGS]
 # --- Page setup ---
 st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker", 
                    page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png", 
                    layout="centered",
                    menu_items={'About': "### TDK InvenCheck - DM 2025"})
 
-st.markdown("""
+# --- Top bar with logo ---
+st.markdown(
+    """
     <style>
         .block-container {
             padding-top: 3rem;
         }
     </style>
-    """, 
-    unsafe_allow_html=True)
-
-# --- Top bar with logo ---
-st.markdown(
-    """
     <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.5rem;">
         <img src="https://invensense.tdk.com/wp-content/themes/invensense/images/tdk-white-logo.svg" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
@@ -37,26 +36,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+##### [SUPABASE FUNCTIONS]
+# --- Load Supabase credentials ---
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+
+supabase: Client = create_client(url, key)
+
 # --- Load data ---
-@st.cache_data(ttl=60)
-def load_device_status():
-    response = supabase.table("devices").select("device_id, timestamp, location").execute()
-    df = pd.DataFrame(response.data)
-    if df.empty:
-        return pd.DataFrame(columns=["device_id", "timestamp", "location", "status", "last_seen"])
-
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-    now = datetime.now(pytz.UTC)
-    df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1200 else "🔴 Offline")
-    df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
-    return df[["device_id", "location", "status", "last_seen"]]
-
-def load_users():
-    response = supabase.table("users").select("uid, user_id, timestamp").execute()
-    df = pd.DataFrame(response.data)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-    return df
-
 @st.cache_data(ttl=300)
 def load_attendance():
     response = supabase.table("attendance").select("*").execute()
@@ -64,11 +52,29 @@ def load_attendance():
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome")
     return df.sort_values("timestamp", ascending=False)
 
+@st.cache_data(ttl=60)
+def load_devices():
+    response = supabase.table("devices").select("device_id, timestamp, location").execute()
+    df = pd.DataFrame(response.data)
+    if df.empty:
+        return pd.DataFrame(columns=["device_id", "timestamp", "location", "status", "last_seen"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    now = datetime.now(pytz.UTC)
+    df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1200 else "🔴 Offline")
+    df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
+    return df[["device_id", "location", "status", "last_seen"]]
+
+@st.cache_data(ttl=300)
+def load_users():
+    response = supabase.table("users").select("uid, user_id, timestamp").execute()
+    df = pd.DataFrame(response.data)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    return df
 
 df = load_attendance()
 
 
-
+##### [SIDEBAR]
 # --- Manual Check-in/Check-out ---
 st.sidebar.header(":material/settings: Admin panel")
 st.sidebar.divider()
@@ -94,7 +100,8 @@ if submit:
     st.rerun()
 
 st.sidebar.divider()
-# --- Unknown user assignment ---
+
+# --- Assign new tag to user ---
 st.sidebar.subheader(":material/person_add: Assign new Tag")
 now = datetime.now(pytz.UTC)
 recent_unknowns = users_df[(users_df["user_id"].str.lower() == "unknown") & ((now - pd.to_datetime(users_df["timestamp"], utc=True)).dt.total_seconds() < 600)]
@@ -117,7 +124,7 @@ else:
     st.sidebar.text_input("Assign New User Name to Tag UID", disabled=True)
     st.sidebar.button("Assign ID", icon=":material/nfc:", type="primary", disabled=True)
 
-# --- Delete user ---
+# --- Delete existing user ---
 st.sidebar.divider()
 st.sidebar.subheader(":material/person_remove: Remove Tag")
 deletable_users = users_df[users_df["user_id"].str.lower() != "unknown"]["user_id"].unique().tolist()
@@ -143,13 +150,10 @@ if delete:
     else:
         st.sidebar.warning("Please confirm deletion first.")
 
-
-
-
-# --- Sidebar: Device panel ---
+# --- Device status panel ---
 st.sidebar.divider()
 st.sidebar.subheader(":material/cloud_upload: Device Connection")
-device_df = load_device_status()
+device_df = load_devices()
 if device_df.empty:
     st.sidebar.warning("No device heartbeat data available.")
 else:
@@ -161,7 +165,7 @@ else:
     }), column_config={'Last seen':None}, hide_index=True, use_container_width=True)
 
 
-
+##### [MAIN VIEW]
 # --- Present employees (always based on today) ---
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
 df_today = df[df["timestamp"].dt.date == today]
@@ -177,11 +181,12 @@ present_employees_display = present_employees[["user_id", "device_id", "timestam
 present_employees_display.columns = ["Employee", "Entrance", "Last Check-in"]
 present_employees_display["Last Check-in"] = present_employees_display["Last Check-in"].dt.strftime("%Y-%m-%d %H:%M")
 
-# --- Counters and refresh ---
+# --- Counters ---
 col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="center")
 col1.metric("🙋🏻‍♂️🙋🏼‍♀️ Employees in the office", len(present_employees), border=True)
 col2.metric("➜🏢 Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
+# --- Refresh button ---
 with col3:
     if st.button("Refresh", icon=":material/refresh:", type="primary"):
         st.cache_data.clear()
