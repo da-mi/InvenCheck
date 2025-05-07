@@ -11,45 +11,39 @@ import pandas as pd
 import pytz
 from datetime import datetime
 
-
 ##### [PAGE SETTINGS]
-# --- Page setup ---
-st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker", 
-                   page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png", 
-                   layout="centered",
-                   menu_items={'About': "### TDK InvenCheck - DM 2025"})
+st.set_page_config(
+    page_title="TDK InvenCheck - Attendance Tracker",
+    page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png",
+    layout="centered",
+    menu_items={'About': "### TDK InvenCheck - DM 2025"}
+)
 
-# --- Adjust default style ---
 st.markdown("""
     <style>
         .block-container {
             padding-top: 3rem;
         }
     </style>
-    """, 
-    unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- Top bar with logo ---
-st.markdown(
-    """
+##### [TOP BAR WITH LOGO]
+st.markdown("""
     <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.35rem;">
         <img src="https://invensense.tdk.com/wp-content/themes/invensense/images/tdk-white-logo.svg" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
     <div style="margin-bottom:20px"></div>
-    """,
-    unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
 
-##### [SUPABASE FUNCTIONS]
-# --- Load Supabase credentials ---
+
+##### [SUPABASE SETUP]
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
-
 supabase: Client = create_client(url, key)
 
-# --- Load data ---
+##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
     response = supabase.table("attendance").select("*").execute()
@@ -76,14 +70,13 @@ def load_users():
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
 
-df = load_attendance()
 
 
 ##### [SIDEBAR]
 # --- Manual Check-in/Check-out ---
 st.sidebar.header(":material/settings: Admin panel")
 st.sidebar.divider()
-st.sidebar.subheader(":material/table_edit: Manual Entry ")
+st.sidebar.subheader(":material/table_edit: Manual Entry")
 users_df = load_users().sort_values("user_id")
 filtered_users = users_df[users_df["user_id"].str.lower() != "unknown"]
 user_names = filtered_users["user_id"].tolist()
@@ -96,7 +89,7 @@ if submit:
     now = datetime.now(pytz.UTC)
     supabase.table("attendance").insert({
         "user_id": selected_id,
-        "action": action.lower().replace('-','_'),
+        "action": action.lower().replace('-', '_'),
         "timestamp": now.isoformat(),
         "device_id": "Manual"
     }).execute()
@@ -167,11 +160,13 @@ else:
         "location": "Location",
         "status": "Status",
         "last_seen": "Last seen"
-    }), column_config={'Last seen':None}, hide_index=True, use_container_width=True)
+    }), column_config={'Last seen': None}, hide_index=True, use_container_width=True)
+
 
 
 ##### [MAIN VIEW]
 # --- Present employees (always based on today) ---
+df = load_attendance()
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
 df_today = df[df["timestamp"].dt.date == today]
 
