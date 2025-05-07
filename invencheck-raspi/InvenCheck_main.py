@@ -186,7 +186,7 @@ def monitor_internet():
     while True:
         if not has_internet():
             print("[WARN] No internet connection!")
-            lcd.show_message(["WARNING","","No Internet Connection","Check WiFi"])
+            lcd.show_message(["SYSTEM OFFLINE", "", "No internet/network", "Check WiFi config"])
             # blink_led(times=50, interval=0.1)
         time.sleep(CONN_CHECK_INTERVAL)
 
@@ -196,8 +196,6 @@ def main_loop():
 
     threading.Thread(target=send_device_heartbeat, daemon=True).start()
     threading.Thread(target=monitor_internet, daemon=True).start()
-    # threading.Thread(target=lcd.loop_diagnostics, daemon=True).start()
-    
 
     while True:
         print("\nWaiting for NFC tag...")
@@ -221,7 +219,7 @@ def main_loop():
                 buzzer.error()
                 continue
             
-            if employee['user_id'] == "Milani Damiano":
+            if employee['user_id'].lower() == "administrator":
                 print("[INFO] GodMode activated")
                 lcd.show_diagnostic()
                 buzzer.sweep_test()
