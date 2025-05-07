@@ -19,15 +19,20 @@ st.set_page_config(page_title="TDK InvenCheck - Attendance Tracker",
                    layout="centered",
                    menu_items={'About': "### TDK InvenCheck - DM 2025"})
 
-# --- Top bar with logo ---
-st.markdown(
-    """
+# --- Adjust default style ---
+st.markdown("""
     <style>
         .block-container {
             padding-top: 3rem;
         }
     </style>
-    <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.5rem;">
+    """, 
+    unsafe_allow_html=True)
+
+# --- Top bar with logo ---
+st.markdown(
+    """
+    <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.35rem;">
         <img src="https://invensense.tdk.com/wp-content/themes/invensense/images/tdk-white-logo.svg" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
