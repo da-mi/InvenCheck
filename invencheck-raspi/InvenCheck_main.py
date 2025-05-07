@@ -7,11 +7,12 @@ Damiano Milani
 """
 
 import os
-import time as t
+import time
 import threading
 import socket
 import requests
-from datetime import datetime, time
+from datetime import datetime
+from datetime import time as dt_time
 import pytz
 
 import RPi.GPIO as GPIO
@@ -19,6 +20,7 @@ from dotenv import load_dotenv
 from mfrc522 import SimpleMFRC522
 
 from buzzer import Buzzer
+from lcd import LCD
 
 # === Load Configuration ===
 load_dotenv()
@@ -31,7 +33,7 @@ DEVICES_TABLE = "devices"
 DEVICE_ID = socket.gethostname()
 BUZZER_PIN = 24
 LED_PIN = 23
-DB_PING_INTERVAL = 1200  # Every hour
+DB_PING_INTERVAL = 1200  # Every 20 minutes
 CONN_CHECK_INTERVAL = 10
 
 # --- Setup GPIO ---
@@ -41,6 +43,10 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 
 # Initialize Buzzer
 buzzer = Buzzer(BUZZER_PIN)
+
+# Initialize LCD
+lcd = LCD()
+
 
 # === NFC Reader ===
 reader = SimpleMFRC522()
@@ -60,14 +66,14 @@ employee_cache = {}
 def blink_led(times=1, interval=0.1):
     for _ in range(times):
         GPIO.output(LED_PIN, GPIO.HIGH)
-        t.sleep(interval)
+        time.sleep(interval)
         GPIO.output(LED_PIN, GPIO.LOW)
-        t.sleep(interval)
+        time.sleep(interval)
 
 # === Time Helpers ===
 def get_today_cutoff_utc():
     rome = pytz.timezone("Europe/Rome")
-    local_midnight = rome.localize(datetime.combine(datetime.now(rome).date(), time.min))
+    local_midnight = rome.localize(datetime.combine(datetime.now(rome).date(), dt_time.min))
     return local_midnight.astimezone(pytz.utc).isoformat().replace("+00:00", "Z")
 
 # === Internet Check ===
@@ -137,17 +143,22 @@ def send_event(user_id, action, device_id):
     }
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
+        now = datetime.now()
         if action == "check_in":
             print(f"\033[32m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
+            lcd.show_message([user_id, "", "⌂⌂ CHECK-IN", now.strftime("%Y-%m-%d %H:%M")])
             buzzer.checkin()
             blink_led(3)
         else:
             print(f"\033[31m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
+            lcd.show_message([user_id, "", "~~ CHECK-OUT", now.strftime("%Y-%m-%d %H:%M")])
             buzzer.checkout()
             blink_led(2)
     else:
         print(f"[ERROR] Failed to write to Supabase: {response.text}")
+        lcd.show_message(["DB ERROR", "Try again"])
         buzzer.error()
+        
 
 # === Heartbeat ===
 def send_device_heartbeat():
@@ -168,15 +179,15 @@ def send_device_heartbeat():
                 print(f"[WARN] Heartbeat failed: {response.text}")
         except Exception as e:
             print(f"[WARN] Heartbeat error: {e}")
-        t.sleep(DB_PING_INTERVAL)
+        time.sleep(DB_PING_INTERVAL)
 
 # === Internet Monitor ===
 def monitor_internet():
     while True:
         if not has_internet():
             print("[WARN] No internet connection!")
-            blink_led(times=50, interval=0.1)           
-        t.sleep(CONN_CHECK_INTERVAL)
+            blink_led(times=50, interval=0.1)
+        time.sleep(CONN_CHECK_INTERVAL)
 
 def main_loop():
     print("\033[1;36m**** TDK InvenCheck - NFC Listener ****\033[0m")
@@ -184,14 +195,17 @@ def main_loop():
 
     threading.Thread(target=send_device_heartbeat, daemon=True).start()
     threading.Thread(target=monitor_internet, daemon=True).start()
+    # threading.Thread(target=lcd.loop_diagnostics, daemon=True).start()
+    
 
     while True:
         print("\nWaiting for NFC tag...")
         try:
             uid, _ = reader.read()
+            print(f"Tag detected: UID {uid}")
+            lcd.show_message(["Reading Tag..."])
             buzzer.read()
             blink_led()
-            print(f"Tag detected: UID {uid}")
 
             employee = get_employee_by_uid(uid)
 
@@ -202,6 +216,7 @@ def main_loop():
 
             if employee['user_id'] == "Unknown":
                 print("[INFO] Unknown user!")
+                lcd.show_message(["UNKNOWN UID"])
                 buzzer.error()
                 continue
 
@@ -211,12 +226,13 @@ def main_loop():
 
             print(f"Processing {action} for {user_id} at {DEVICE_ID}")
             send_event(user_id, action, DEVICE_ID)
-            t.sleep(0.1)
+            time.sleep(0.1)
 
         except Exception as e:
             print(f"[ERROR] {e}")
+            lcd.show_message(["ERROR",str(e)[:20]])
             buzzer.error()
-            t.sleep(0.1)
+            time.sleep(0.1)
 
 if __name__ == "__main__":
     main_loop()
