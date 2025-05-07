@@ -85,7 +85,7 @@ class Buzzer:
         print("Sweeping from C4 to 6kHz...")
         for note in self.NOTES:
             print(f"Playing {note} ({Buzzer.NOTES[note]} Hz)")
-            self.note(note, 0.1)
+            self.note(note, 0.005)
             time.sleep(0.001)
 
 

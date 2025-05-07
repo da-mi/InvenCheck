@@ -186,7 +186,8 @@ def monitor_internet():
     while True:
         if not has_internet():
             print("[WARN] No internet connection!")
-            blink_led(times=50, interval=0.1)
+            lcd.show_message(["WARNING","","No Internet Connection","Check WiFi"])
+            # blink_led(times=50, interval=0.1)
         time.sleep(CONN_CHECK_INTERVAL)
 
 def main_loop():
@@ -216,8 +217,14 @@ def main_loop():
 
             if employee['user_id'] == "Unknown":
                 print("[INFO] Unknown user!")
-                lcd.show_message(["UNKNOWN UID"])
+                lcd.show_message(["UNKNOWN TAG","","Please assign this  tag to someone first"])
                 buzzer.error()
+                continue
+            
+            if employee['user_id'] == "Milani Damiano":
+                print("[INFO] GodMode activated")
+                lcd.show_diagnostic()
+                buzzer.sweep_test()
                 continue
 
             user_id = employee["user_id"]
