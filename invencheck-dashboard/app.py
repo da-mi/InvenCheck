@@ -98,12 +98,12 @@ if submit:
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.divider()
 
 # --- Assign new tag to user ---
+st.sidebar.divider()
 st.sidebar.subheader(":material/person_add: Assign new Tag")
 now = datetime.now(pytz.UTC)
-recent_unknowns = users_df[(users_df["user_id"].str.lower() == "unknown") & ((now - pd.to_datetime(users_df["timestamp"], utc=True)).dt.total_seconds() < 600)]
+recent_unknowns = users_df[(users_df["user_id"].str.lower() == "unknown") & ((now - pd.to_datetime(users_df["timestamp"], utc=True)).dt.total_seconds() < 600)].copy()
 
 if not recent_unknowns.empty:
     recent_unknowns["time_ago"] = (now - pd.to_datetime(recent_unknowns["timestamp"], utc=True)).apply(lambda x: f"{int(x.total_seconds() // 60)} min ago")
@@ -168,6 +168,10 @@ else:
 ##### [MAIN VIEW]
 # --- Present employees (always based on today) ---
 df = load_attendance()
+df["entrance"] = df["device_id"].apply(lambda x: "Manual" if x == "Manual" else 
+                                       device_df[device_df["device_id"] == x]["location"].values[0] 
+                                       if not device_df[device_df["device_id"] == x].empty else "Unknown")
+
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
 df_today = df[df["timestamp"].dt.date == today]
 
@@ -178,7 +182,7 @@ present_employees = (
     .reset_index()
 )
 present_employees = present_employees[present_employees["action"] == "check_in"]
-present_employees_display = present_employees[["user_id", "device_id", "timestamp"]]
+present_employees_display = present_employees[["user_id", "entrance", "timestamp"]].copy()
 present_employees_display.columns = ["Employee", "Entrance", "Last Check-in"]
 present_employees_display["Last Check-in"] = present_employees_display["Last Check-in"].dt.strftime("%Y-%m-%d %H:%M")
 
@@ -201,7 +205,7 @@ with tabs[0]:
 
 with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
-    df_filtered = df[df["timestamp"].dt.date == date_selected]
+    df_filtered = df[df["timestamp"].dt.date == date_selected].copy()
 
     # --- First check-in and last check-out per employee on selected day ---
     df_checkins = df_filtered[df_filtered["action"] == "check_in"].sort_values("timestamp")
@@ -220,7 +224,7 @@ with tabs[1]:
     st.dataframe(attendance_summary, hide_index=True, use_container_width=True)
 
 with tabs[2]:
-    display_df = df[["user_id", "device_id", "timestamp", "action"]]
+    display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
     st.dataframe(display_df, use_container_width=True)
