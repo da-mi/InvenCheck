@@ -2,7 +2,8 @@
 InvenCheck - WebApp interface
 Streamlit interface to Supabase database.
 
-Damiano Milani 2025
+Damiano Milani
+2025
 """
 
 import streamlit as st
