@@ -17,10 +17,10 @@ import pytz
 
 import RPi.GPIO as GPIO
 from dotenv import load_dotenv
-from mfrc522 import SimpleMFRC522
 
 from buzzer import Buzzer
 from lcd import LCD
+from nfc import NFCReader
 
 # === Load Configuration ===
 load_dotenv()
@@ -49,7 +49,7 @@ lcd = LCD()
 
 
 # === NFC Reader ===
-reader = SimpleMFRC522()
+nfc = NFCReader()
 
 # === API Headers ===
 HEADERS = {
@@ -200,7 +200,7 @@ def main_loop():
     while True:
         print("\nWaiting for NFC tag...")
         try:
-            uid, _ = reader.read()
+            uid = nfc.read_uid()
             print(f"Tag detected: UID {uid}")
             lcd.show_message(["Reading Tag..."])
             buzzer.read()
@@ -235,7 +235,7 @@ def main_loop():
 
         except Exception as e:
             print(f"[ERROR] {e}")
-            lcd.show_message(["ERROR",str(e)[:20]])
+            lcd.show_message(["ERROR",str(e)])
             buzzer.error()
             time.sleep(0.1)
 
