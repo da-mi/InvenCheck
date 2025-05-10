@@ -1,3 +1,11 @@
+"""
+NFCReader class definition
+PN532 NFC reader connected to a Raspberry Pi via SPI
+
+Damiano Milani
+2025
+"""
+
 import board
 import busio
 from digitalio import DigitalInOut

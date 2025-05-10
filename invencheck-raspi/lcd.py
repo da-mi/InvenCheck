@@ -22,7 +22,7 @@ class LCD:
         self.last_interaction_time = time.time()
         self.active_message_until = 0
         self.lock = threading.RLock()
-        self.default_screen_lines = ["***  InvenCheck  ***", "", "Place NFC", "tag below"]
+        self.default_screen_lines = ["***  InvenCheck  ***", "", "Place NFC Tag below", "to Check In/Out"]
         self.current_lines = ["", "", "", ""]
 
         threading.Thread(target=self._screen_manager_loop, daemon=True).start()

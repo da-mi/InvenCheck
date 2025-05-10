@@ -1,17 +1,16 @@
 """
 Buzzer class definition
-Passive buzzer connected to a Raspberry Pi
+Passive buzzer connected to a Raspberry Pi using hardware PWM (pigpio)
 
 Damiano Milani
 2025
 """
 
-import RPi.GPIO as GPIO
+import pigpio
 import time
 
 class Buzzer:
     NOTES = {
-        # Octave 0–7 (standard)
         'B0': 31, 'C1': 33, 'CS1': 35, 'D1': 37, 'DS1': 39, 'E1': 41, 'F1': 44, 'FS1': 46, 'G1': 49, 'GS1': 52,
         'A1': 55, 'AS1': 58, 'B1': 62, 'C2': 65, 'CS2': 69, 'D2': 73, 'DS2': 78, 'E2': 82, 'F2': 87, 'FS2': 93,
         'G2': 98, 'GS2': 104, 'A2': 110, 'AS2': 117, 'B2': 123, 'C3': 131, 'CS3': 139, 'D3': 147, 'DS3': 156,
@@ -26,20 +25,21 @@ class Buzzer:
         'REST': 0
     }
 
-
     def __init__(self, pin, default_freq=2000):
         self.pin = pin
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        self.pwm = GPIO.PWM(self.pin, default_freq)
+        self.default_freq = default_freq
+        self.pi = pigpio.pi()
+        if not self.pi.connected:
+            raise RuntimeError("Cannot connect to pigpio daemon. Make sure 'pigpiod' is running.")
+        self.pi.set_mode(self.pin, pigpio.OUTPUT)
 
     def beep(self, frequency=None, duration=0.1):
         if frequency and frequency > 0:
-            self.pwm.ChangeFrequency(frequency)
-            self.pwm.start(20)
-        time.sleep(duration)
-        self.pwm.stop()
+            self.pi.hardware_PWM(self.pin, frequency, 500000)  # 50% duty cycle
+            time.sleep(duration)
+            self.pi.hardware_PWM(self.pin, 0, 0)  # Stop
+        else:
+            time.sleep(duration)
 
     def note(self, name, duration=0.1):
         freq = self.NOTES.get(name.upper(), 0)
@@ -51,55 +51,152 @@ class Buzzer:
             if note.upper() == 'REST':
                 time.sleep(actual_duration)
             else:
-                freq = self.NOTES.get(note.upper(), 440)  # fallback to A4
                 self.note(note, actual_duration)
             time.sleep(pause * tempo)
-
 
     # Preset tones
     def read(self):
         self.beep(3000, 0.05)
 
     def online(self):
-        for tone in [(2094,0.05), (2638,0.05), (3136,0.05)]:
-            self.beep(tone[0],tone[1])
+        for tone in [(2094, 0.05), (2638, 0.05), (3136, 0.05)]:
+            self.beep(*tone)
             time.sleep(0.05)
 
     def checkin(self):
-        for tone in [(3000,0.05), (3000,0.05), (3000,0.1)]:
-            self.beep(tone[0],tone[1])
+        for tone in [(3000, 0.05), (3000, 0.05), (3000, 0.1)]:
+            self.beep(*tone)
             time.sleep(0.05)
-        
+
     def checkout(self):
-        for tone in [(2000,0.1), (1500,0.1), (880,0.1)]:
-            self.beep(tone[0],tone[1])
+        for tone in [(2000, 0.1), (1500, 0.1), (880, 0.1)]:
+            self.beep(*tone)
             time.sleep(0.05)
 
     def error(self):
-        for tone in [(150,0.2), (150,0.2), (150,0.2)]:
-            self.beep(tone[0],tone[1])
+        for tone in [(150, 0.2), (150, 0.2), (150, 0.2)]:
+            self.beep(*tone)
             time.sleep(0.05)
-
 
     def sweep_test(self):
         print("Sweeping from C4 to 6kHz...")
         for note in self.NOTES:
-            print(f"Playing {note} ({Buzzer.NOTES[note]} Hz)")
+            print(f"Playing {note} ({self.NOTES[note]} Hz)")
             self.note(note, 0.005)
             time.sleep(0.001)
 
+    def close(self):
+        self.pi.hardware_PWM(self.pin, 0, 0)
+        self.pi.stop()
 
 if __name__ == "__main__":
-    buzzer = Buzzer(pin=24)
+    buzzer = Buzzer(pin=13)  # GPIO18 supports hardware PWM0
 
     sw = [
         ('A3', 0.5), ('A3', 0.5), ('A3', 0.5),
         ('F3', 0.35), ('C4', 0.15), ('A3', 0.5),
         ('F3', 0.35), ('C4', 0.15), ('A3', 0.8),
-
         ('E4', 0.5), ('E4', 0.5), ('E4', 0.5),
         ('F4', 0.35), ('C4', 0.15), ('GS3', 0.5),
         ('F3', 0.35), ('C4', 0.15), ('A3', 0.8),
     ]
+    mario_transposed = [
+    ('E5',0.1), ('E5',0.1), ('REST',0.1), ('E5',0.1),
+    ('REST',0.1), ('C5',0.1), ('E5',0.1), ('REST',0.1), ('G5',0.3), ('REST',0.3), ('G4',0.3),
+    ('REST',0.2), ('C5',0.1), ('G4',0.1), ('REST',0.1), ('E4',0.1),
+    ('A4',0.1), ('B4',0.1), ('AS4',0.1), ('A4',0.1),
+    ('G4',0.1), ('E5',0.1), ('G5',0.1), ('A5',0.3),
+    ('F5',0.1), ('G5',0.1), ('REST',0.1), ('E5',0.1),
+    ('C5',0.1), ('D5',0.1), ('B4',0.1), ('REST',0.3),
 
-    buzzer.play_song(sw, tempo=1.0)
+    ]
+
+    starWars = [('AS4', 0.125), ('AS4', 0.125), ('AS4', 0.125),
+            ('F5', 0.5), ('C6', 0.5),
+            ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F6', 0.5), ('C6', 0.25),
+            ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F6', 0.5), ('C6', 0.25),
+            ('AS5', 0.125), ('A5', 0.125), ('AS5', 0.125), ('G5', 0.5), ('C5', 0.125), ('C5', 0.125), ('C5', 0.125),
+            ('F5', 0.5), ('C6', 0.5),
+            ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F6', 0.5), ('C6', 0.25),             
+            ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F6', 0.5), ('C6', 0.25),
+            ('AS5', 0.125), ('A5', 0.125), ('AS5', 0.125), ('G5', 0.5), ('C5', 0.125), ('C5', 0.0625),
+            ('D5', 0.25), ('D5', 0.125), ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F5', 0.125),
+            ('F5', 0.125), ('G5', 0.125), ('A5', 0.125), ('G5', 0.25), ('D5', 0.125), ('E5', 0.25), ('C5', 0.125), ('C5', 0.0625),
+            ('D5', 0.25), ('D5', 0.125), ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F5', 0.125),            
+            ('C6', 0.125), ('G5', 0.0625), ('G5', 0.5), ('REST', 0.125), ('C5', 0.125),
+            ('D5', 0.25), ('D5', 0.125), ('AS5', 0.125), ('A5', 0.125), ('G5', 0.125), ('F5', 0.125),
+            ('F5', 0.125), ('G5', 0.125), ('A5', 0.125), ('G5', 0.25), ('D5', 0.125), ('E5', 0.25), ('C6', 0.125), ('C6', 0.0625),
+            ('F6', 0.25), ('DS6', 0.125), ('CS6', 0.25), ('C6', 0.125), ('AS5', 0.25), ('GS5', 0.125), ('G5', 0.25), ('F5', 0.125),
+            ('C6', 1.0)]
+
+    gameOfThrones = [('G4', 0.25), ('C4', 0.25),  
+                    ('DS4', 0.0625), ('F4', 0.0625), ('G4', 0.25), ('C4', 0.25), ('DS4', 0.0625), ('F4', 0.0625),
+                    ('D4', 1.0),
+                    ('F4', 0.25), ('AS3', 0.25),
+                    ('DS4', 0.0625), ('D4', 0.0625), ('F4', 0.25), ('AS3', 0.25),
+                    ('DS4', 0.0625), ('D4', 0.0625), ('C4', 1.0),
+                    ('G4', 0.25), ('C4', 0.25),  
+                    ('DS4', 0.0625), ('F4', 0.0625), ('G4', 0.25), ('C4', 0.25), ('DS4', 0.0625), ('F4', 0.0625),
+                    ('D4', 1.0),
+                    ('F4', 0.25), ('AS3', 0.25),
+                    ('DS4', 0.0625), ('D4', 0.0625), ('F4', 0.25), ('AS3', 0.25),
+                    ('DS4', 0.0625), ('D4', 0.0625), ('C4', 1.0),
+                    ('G4', 0.25), ('C4', 0.25),
+                    ('DS4', 0.0625), ('F4', 0.0625), ('G4', 0.25), ('C4', 0.25), ('DS4', 0.0625), ('F4', 0.0625),
+                    ('D4', 0.5),
+                    ('F4', 0.25), ('AS3', 0.25),
+                    ('D4', 0.125), ('DS4', 0.125), ('D4', 0.125), ('AS3', 0.125), ('C4', 1.0)]
+
+    takeMeOn = [('FS5', 0.125), ('FS5', 0.125), ('D5', 0.125), ('B4', 0.25), ('B4', 0.25), ('E5', 0.25),
+                ('E5', 0.25), ('E5', 0.125), ('GS5', 0.125), ('GS5', 0.125), ('A5', 0.125), ('B5', 0.125),
+                ('A5', 0.125), ('A5', 0.125), ('A5', 0.125), ('E5', 0.25), ('D5', 0.25), ('FS5', 0.25),
+                ('FS5', 0.25), ('FS5', 0.125), ('E5', 0.125), ('E5', 0.125), ('FS5', 0.125), ('E5', 0.125)]
+
+    starTrekIntro = [('D4', 0.083333), ('G4', 0.0625), ('C5', 0.375),
+                    ('B4', 0.125), ('G4', 0.041666), ('E4', 0.041666), ('A4', 0.041666), ('D5', 0.5)]
+
+    harryPotter = [('D4', 0.25),
+    ('G4', 0.375), ('AS4', 0.125), ('A4', 0.25),
+    ('G4', 0.5), ('D5', 0.25),
+    ('C5', 0.6666), 
+    ('A4', 0.6666),
+    ('G4', 0.375), ('AS4', 0.125), ('A4', 0.25),
+    ('F4', 0.5), ('GS4', 0.25),
+    ('D4', 0.6666), 
+    ('D4', 0.25),
+    ('G4', 0.375), ('AS4', 0.125), ('A4', 0.25),
+    ('G4', 0.5), ('D5', 0.25),
+    ('F5', 0.5), ('E5', 0.25),
+    ('DS5', 0.5), ('B4', 0.25),
+    ('DS5', 0.375), ('D5', 0.125), ('CS5', 0.25),
+    ('CS4', 0.5), ('B4', 0.25),
+    ('G4', 0.6666),
+    ('AS4', 0.25),     
+    ('D5', 0.5), ('AS4', 0.25),
+    ('D5', 0.5), ('AS4', 0.25),
+    ('DS5', 0.5), ('D5', 0.25),
+    ('CS5', 0.5), ('A4', 0.25),
+    ('AS4', 0.375), ('D5', 0.125), ('CS5', 0.25),
+    ('CS4', 0.5), ('D4', 0.25),
+    ('D5', 0.6666),
+    ('REST', 0.25), ('AS4', 0.25),
+    ('D5', 0.5), ('AS4', 0.25),
+    ('D5', 0.5), ('AS4', 0.25),
+    ('F5', 0.5), ('E5', 0.25),
+    ('DS5', 0.5), ('B4', 0.25),
+    ('DS5', 0.375), ('D5', 0.125), ('CS5', 0.25),
+    ('CS4', 0.5), ('AS4', 0.25),
+    ('G4', 0.6666)]
+
+
+    odeToJoy = [('A4', 0.25), ('A4', 0.25), ('AS4', 0.25), ('C5', 0.25),
+                ('C5', 0.25), ('AS4', 0.25), ('A4', 0.25), ('G4', 0.25),
+                ('F4', 0.25), ('F4', 0.25), ('G4', 0.25), ('A4', 0.25),
+                ('A4', 0.375), ('G4', 0.125), ('G4', 0.5)]
+
+    
+
+
+
+    buzzer.play_song(mario_transposed, tempo=1.0)
+    buzzer.close()
