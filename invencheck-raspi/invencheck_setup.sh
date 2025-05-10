@@ -11,7 +11,7 @@ SERVICE_NAME="invencheck"
 
 setup_base() {
     echo "=== Updating system ==="
-    apt update && apt -y upgrade
+    apt update
 
     echo "=== Installing essentials ==="
     apt install -y git python3 python3-venv python3-pip watchdog

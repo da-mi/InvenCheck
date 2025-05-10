@@ -1,0 +1,8 @@
+adafruit_pn532
+board
+pigpio
+psutil
+python-dotenv
+pytz
+requests
+RPLCD

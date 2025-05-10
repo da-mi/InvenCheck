@@ -55,10 +55,6 @@ HEADERS = {
 employee_cache = {}
 
 
-
-# === Internet Check ===
-
-
 # === NFC Logic ===
 def get_employee_by_uid(uid):
     if str(uid) in employee_cache:
@@ -74,7 +70,7 @@ def get_employee_by_uid(uid):
         data = response.json()
         if data:
             employee_cache[str(uid)] = data[0]
-            print(f"[INFO] Tag UID {uid} fetched from remote database.")
+            print(f"[DB] Tag UID {uid} fetched from remote database.")
             return data[0]
     else:
         print(f"[ERROR] Failed to fetch employee: {response.text}")
@@ -84,7 +80,7 @@ def register_unknown_employee(uid):
     payload = {"uid": str(uid), "user_id": "Unknown"}
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
-        print(f"[INFO] Unknown employee with UID {uid} registered.")
+        print(f"[DB] Unknown employee with UID {uid} registered.")
         employee_cache[str(uid)] = payload
         return payload
     else:
@@ -177,18 +173,19 @@ def internet_check():
 
 # === Main Loop ===
 def main_loop():
-    print("\033[1;36m**** TDK InvenCheck - NFC Listener ****\033[0m")
+    print("\033[1;36m**** TDK InvenCheck - NFC Attendance System ****\033[0m")
+    print("\033[1;36mdamiano.milani@tdk.com - 2025\033[0m")
     buzzer.online()
 
     threading.Thread(target=device_heartbeat, daemon=True).start()
     threading.Thread(target=internet_check, daemon=True).start()
 
     while True:
-        print("\nWaiting for NFC Tag...")
+        print("\n[NFC] Waiting for NFC Tag...")
         try:
             uid = nfc.read_uid()
-            print(f"Tag detected: UID {uid}")
-            lcd.show_message(["Reading Tag..."])
+            print(f"[NFC] Tag detected: UID {uid}")
+            lcd.show_message(["***  InvenCheck  ***", "", "Tag detected!", "Updating attendance..."])
             buzzer.read()
 
             employee = get_employee_by_uid(uid)
@@ -214,7 +211,7 @@ def main_loop():
             last_action = get_last_action_today(user_id)
             action = "check_out" if last_action == "check_in" else "check_in"
 
-            print(f"Processing {action} for {user_id} at {DEVICE_ID}")
+            print(f"[DB] Processing {action} for \"{user_id}\" at {DEVICE_ID}")
             send_event(user_id, action, DEVICE_ID)
             time.sleep(0.1)
 
