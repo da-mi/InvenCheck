@@ -68,7 +68,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/invencheck-raspi/InvenCheck_main.py
+ExecStart=$VENV_DIR/bin/python -u $INSTALL_DIR/invencheck-raspi/InvenCheck_main.py
 WorkingDirectory=$INSTALL_DIR/invencheck-raspi
 StandardOutput=journal
 StandardError=journal

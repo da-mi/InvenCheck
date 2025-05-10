@@ -217,7 +217,7 @@ def main_loop():
 
         except Exception as e:
             print(f"[ERROR] {e}")
-            lcd.show_message(["ERROR",str(e)])
+            lcd.show_message(["ERROR",str(e)[:60]])
             buzzer.error()
             time.sleep(0.1)
 
