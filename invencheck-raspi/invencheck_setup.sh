@@ -18,7 +18,6 @@ setup_base() {
 
     echo "=== Disable unused services ==="
     systemctl disable bluetooth.service hciuart.service triggerhappy.service
-    systemctl disable dhcpcd@eth0.service || true
 
     # echo "=== Enable tmpfs for /tmp ==="
     # grep -q '/tmp tmpfs' /etc/fstab || echo 'tmpfs /tmp tmpfs defaults,noatime,nosuid 0 0' >> /etc/fstab
@@ -45,7 +44,6 @@ setup_venv() {
     mkdir -p "$INSTALL_DIR"
     python3 -m venv "$VENV_DIR"
     source "$VENV_DIR/bin/activate"
-    pip install --upgrade pip
     pip install -r "$INSTALL_DIR/invencheck-raspi/requirements.txt"
     deactivate
 }
