@@ -78,27 +78,25 @@ class LCD:
 
         except Exception as e:
             self.show_message(["Diagnostic Fail", str(e)[:20], "", ""], duration=self.diag_duration)
-
-    def _default_screen(self):
-        self._write_lines(self.default_screen_lines)
     
-    def _default_screen(self):
+    def _default_screen(self, force=False):
         now = datetime.now()
-        current_minute = now.strftime("%Y-%m-%d %H:%M")
-        if self.last_minute_displayed == current_minute:
-            return  # Skip refresh if minute hasn't changed
+        current_minute = now.strftime("%Y-%m-%d     %H:%M")
+        
+        if not force and self.current_lines == self.default_screen_lines and self.last_minute_displayed == current_minute:
+            return  # Avoid redundant refresh
 
         self.last_minute_displayed = current_minute
-        default_screen_lines = [
+        self.default_screen_lines = [
             "***  InvenCheck  ***",
             "",
             current_minute,
             "Place NFC Tag below"
         ]
-        self._write_lines(default_screen_lines)
+        self._write_lines(self.default_screen_lines)
 
     def _screen_manager_loop(self):
-        self._default_screen()
+        self._default_screen(force=True)
         while True:
             time.sleep(0.5)
             now = time.time()
@@ -111,5 +109,7 @@ class LCD:
                     self.lcd.backlight_enabled = True
 
                 # Return to default screen
-                if now >= self.active_message_until:
-                    self._default_screen()
+                if self.current_lines != self.default_screen_lines and now >= self.active_message_until:
+                    self._default_screen(force=True)
+                elif self.current_lines == self.default_screen_lines:
+                    self._default_screen(force=False)
