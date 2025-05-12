@@ -138,7 +138,6 @@ update_repo() {
 
     echo "=== Updating InvenCheck repo ==="
     cd "$INSTALL_DIR"
-    git stash
     git pull
     source "$VENV_DIR/bin/activate"
     pip install -r "$INSTALL_DIR/invencheck-raspi/requirements.txt"
