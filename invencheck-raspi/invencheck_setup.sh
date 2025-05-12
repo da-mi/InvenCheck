@@ -69,6 +69,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=$VENV_DIR/bin/python -u $INSTALL_DIR/invencheck-raspi/InvenCheck_main.py
+ExecStopPost=$VENV_DIR/bin/python -u $INSTALL_DIR/invencheck-raspi/boot_message.py stopped
 WorkingDirectory=$INSTALL_DIR/invencheck-raspi
 StandardOutput=journal
 StandardError=journal
