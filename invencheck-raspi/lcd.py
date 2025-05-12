@@ -12,6 +12,7 @@ import time
 import threading
 import subprocess
 import psutil
+from datetime import datetime
 
 class LCD:
     def __init__(self, address=0x27, cols=20, rows=4, default_interval=5, diag_duration=30, backlight_timeout=60):
@@ -22,7 +23,7 @@ class LCD:
         self.last_interaction_time = time.time()
         self.active_message_until = 0
         self.lock = threading.RLock()
-        self.default_screen_lines = ["***  InvenCheck  ***", "", "Place NFC Tag below", "to Check In/Out"]
+        self.last_minute_displayed = None
         self.current_lines = ["", "", "", ""]
 
         threading.Thread(target=self._screen_manager_loop, daemon=True).start()
@@ -80,6 +81,21 @@ class LCD:
 
     def _default_screen(self):
         self._write_lines(self.default_screen_lines)
+    
+    def _default_screen(self):
+        now = datetime.now()
+        current_minute = now.strftime("%Y-%m-%d %H:%M")
+        if self.last_minute_displayed == current_minute:
+            return  # Skip refresh if minute hasn't changed
+
+        self.last_minute_displayed = current_minute
+        default_screen_lines = [
+            "***  InvenCheck  ***",
+            "",
+            current_minute,
+            "Place NFC Tag below"
+        ]
+        self._write_lines(default_screen_lines)
 
     def _screen_manager_loop(self):
         self._default_screen()
@@ -95,5 +111,5 @@ class LCD:
                     self.lcd.backlight_enabled = True
 
                 # Return to default screen
-                if self.current_lines != self.default_screen_lines and now >= self.active_message_until:
+                if now >= self.active_message_until:
                     self._default_screen()
