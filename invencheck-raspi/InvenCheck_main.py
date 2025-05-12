@@ -119,11 +119,11 @@ def send_event(user_id, action, device_id):
         now = datetime.now()
         if action == "check_in":
             print(f"\033[32m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
-            lcd.show_message([user_id, "", "⌂⌂ CHECK-IN", now.strftime("%Y-%m-%d %H:%M")])
+            lcd.show_message([user_id, "", "⌂⌂ CHECK-IN", now.strftime("%Y-%m-%d     %H:%M")])
             buzzer.checkin()
         else:
             print(f"\033[31m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
-            lcd.show_message([user_id, "", "~~ CHECK-OUT", now.strftime("%Y-%m-%d %H:%M")])
+            lcd.show_message([user_id, "", "~~ CHECK-OUT", now.strftime("%Y-%m-%d     %H:%M")])
             buzzer.checkout()
     else:
         print(f"[ERROR] Failed to write to Supabase: {response.text}")
@@ -185,7 +185,7 @@ def main_loop():
         try:
             uid = nfc.read_uid()
             print(f"[NFC] Tag detected: UID {uid}")
-            lcd.show_message(["***  InvenCheck  ***", "", "Tag detected!", "Updating attendance..."])
+            lcd.show_message(["***  InvenCheck  ***", "", "Tag detected!", "Reading database..."], duration=10)
             buzzer.read()
 
             employee = get_employee_by_uid(uid)
@@ -204,7 +204,7 @@ def main_loop():
             if employee['user_id'].lower() == "administrator":
                 print("[INFO] GodMode activated")
                 lcd.show_diagnostic()
-                buzzer.sweep_test()
+                buzzer.sweep()
                 continue
 
             user_id = employee["user_id"]

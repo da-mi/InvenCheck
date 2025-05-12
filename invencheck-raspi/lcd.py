@@ -68,10 +68,10 @@ class LCD:
             cpu_usage = psutil.cpu_percent(interval=0.5)
 
             lines = [
-                f"{hostname}",
-                f"SSID: {ssid[:15]}" if ssid else "SSID: Unknown",
-                f"IP: {ip_address}",
-                f"Temp: {temp_c:.1f}C CPU: {cpu_usage:.0f}%",
+                f"HOST {hostname}",
+                f"IP   {ip_address}",
+                f"SSID {ssid[:15]}" if ssid else "SSID: Unknown",
+                f"TEMP {temp_c:.1f}C  CPU {cpu_usage:.0f}%",
             ]
             self.show_message(lines, duration=self.diag_duration)
 

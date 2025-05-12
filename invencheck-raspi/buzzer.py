@@ -56,32 +56,22 @@ class Buzzer:
 
     # Preset tones
     def read(self):
-        self.beep(3000, 0.05)
+        self.play_song([('C7',0.05)])
 
     def online(self):
-        for tone in [(2094, 0.05), (2638, 0.05), (3136, 0.05)]:
-            self.beep(*tone)
-            time.sleep(0.05)
+        self.play_song([('C7',0.05),('G7',0.05),('C8',0.1)])
 
     def checkin(self):
-        for tone in [(3000, 0.05), (3000, 0.05), (3000, 0.1)]:
-            self.beep(*tone)
-            time.sleep(0.05)
+        self.play_song([('C8',0.05),('C8',0.05),('C8',0.1)])
 
     def checkout(self):
-        for tone in [(2000, 0.1), (1500, 0.1), (880, 0.1)]:
-            self.beep(*tone)
-            time.sleep(0.05)
+        self.play_song([('C7',0.1),('A6',0.1),('F6',0.2)])
 
     def error(self):
-        for tone in [(150, 0.2), (150, 0.2), (150, 0.2)]:
-            self.beep(*tone)
-            time.sleep(0.05)
+        self.play_song([('C3',0.2),('C3',0.2),('C3',0.2)])
 
-    def sweep_test(self):
-        print("Sweeping from C4 to 6kHz...")
+    def sweep(self):
         for note in self.NOTES:
-            print(f"Playing {note} ({self.NOTES[note]} Hz)")
             self.note(note, 0.005)
             time.sleep(0.001)
 
@@ -167,6 +157,7 @@ class Buzzer:
                 ('G4', 0.375), ('AS4', 0.125), ('A4', 0.25),
                 ('F4', 0.5), ('GS4', 0.25),
                 ('D4', 0.6666), 
+                ('REST', 0.5),
                 ('D4', 0.25),
                 ('G4', 0.375), ('AS4', 0.125), ('A4', 0.25),
                 ('G4', 0.5), ('D5', 0.25),
@@ -175,6 +166,7 @@ class Buzzer:
                 ('DS5', 0.375), ('D5', 0.125), ('CS5', 0.25),
                 ('CS4', 0.5), ('B4', 0.25),
                 ('G4', 0.6666),
+                ('REST', 0.5),
                 ('AS4', 0.25),     
                 ('D5', 0.5), ('AS4', 0.25),
                 ('D5', 0.5), ('AS4', 0.25),
