@@ -90,8 +90,8 @@ class LCD:
         self.default_screen_lines = [
             "***  InvenCheck  ***",
             "",
-            current_minute,
-            "Place NFC Tag below"
+            "Place NFC Tag below",
+            current_minute
         ]
         self._write_lines(self.default_screen_lines)
 
