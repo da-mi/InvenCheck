@@ -84,9 +84,13 @@ def nightly_employee_refresh():
 def get_employee_by_uid(uid):
     uid_str = str(uid)
     if uid_str in employee_cache:
-        return employee_cache[uid_str]
+        print(f"[INFO] Tag UID {uid} already in local cache.")
+        if employee_cache[uid_str]["user_id"] == "Unknown":
+            print(f"[INFO] Tag UID {uid} is in local cache but Unknown, check if database has been updated.")
+        else:
+            return employee_cache[uid_str]
 
-    print(f"[INFO] UID {uid} not found in cache. Checking remote database...")
+    print(f"[INFO] Tag UID {uid} not found in cache. Checking remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}"
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
@@ -109,6 +113,19 @@ def register_unknown_employee(uid):
     else:
         print(f"[ERROR] Failed to register employee: {response.text}")
         return None
+    
+def update_unknown_timestamp(uid):
+    payload = {"timestamp": datetime.utcnow().isoformat()}
+    response = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}&user_id=eq.Unknown",
+        headers=HEADERS,
+        json=payload
+    )
+    if response.status_code in (200, 204):
+        print(f"[DB] Updated timestamp for unknown UID {uid}.")
+    else:
+        print(f"[ERROR] Failed to update timestamp for unknown UID {uid}: {response.text}")
+
 
 def get_today_cutoff_utc():
     rome = pytz.timezone("Europe/Rome")
@@ -225,11 +242,12 @@ def main_loop():
             if employee['user_id'] == "Unknown":
                 print("[INFO] Unknown user!")
                 lcd.show_message(["UNKNOWN TAG","","Please assign this  tag to someone first"])
+                update_unknown_timestamp(uid) #renew timestamp
                 buzzer.error()
                 continue
             
-            if employee['user_id'].lower() == "administrator":
-                print("[INFO] GodMode activated")
+            if employee['user_id'].lower() == "morpheus":
+                print("[INFO] God Mode activated")
                 lcd.show_diagnostic()
                 buzzer.sweep()
                 continue
