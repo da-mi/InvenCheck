@@ -86,7 +86,7 @@ EOF
     systemctl start "$SERVICE_NAME"
     echo "=== Service '$SERVICE_NAME' started ==="
 
-    echo "=== Setting up LCD boot/shutdown systemd services ==="
+    echo "=== Setting up LCD boot systemd services ==="
     #Create boot-lcd.service
     cat <<EOF >/etc/systemd/system/boot-lcd.service
 [Unit]
@@ -102,34 +102,15 @@ ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/invencheck-raspi/boot_message.py boo
 WantedBy=sysinit.target
 EOF
 
-    # Create shutdown-lcd.service
-    cat <<EOF >/etc/systemd/system/shutdown-lcd.service
-[Unit]
-Description=LCD Shutdown Message
-DefaultDependencies=no
-Before=shutdown.target reboot.target halt.target
-
-[Service]
-Type=oneshot
-ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/invencheck-raspi/boot_message.py shutdown
-RemainAfterExit=true
-
-[Install]
-WantedBy=halt.target reboot.target shutdown.target
-EOF
-
     # Reload systemd to detect new services
     systemctl daemon-reload
-
-    # Enable both services
     systemctl enable boot-lcd.service
-    systemctl enable shutdown-lcd.service
 
-    echo "===  boot-lcd and shutdown-lcd services installed and enabled. === "
+    echo "===  boot-lcd service installed and enabled. === "
 
 
     ### === Optimize pigpiod with -m flag ===
-    echo "===  Configuring pigpiod for (reduced CPU usage)... === "
+    echo "===  Configuring pigpiod for reduced CPU usage... === "
 
     # Create systemd override directory if needed
     mkdir -p /etc/systemd/system/pigpiod.service.d

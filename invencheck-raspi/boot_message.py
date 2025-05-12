@@ -28,4 +28,4 @@ if __name__ == "__main__":
     elif mode == "shutdown":
         lcd.show_message(["REBOOTING SYSTEM...", "", f"{socket.gethostname()}", "Please wait 10s..."])
     elif mode == "stopped":
-        lcd.show_message(["***  InvenCheck  ***", "", f"{socket.gethostname()}", "SERVICE STOPPED!"])
+        lcd.show_message(["WARNING: INVENCHECK", "SERVICE STOPPED!", f"{socket.gethostname()}", "Please wait/reboot.."])
