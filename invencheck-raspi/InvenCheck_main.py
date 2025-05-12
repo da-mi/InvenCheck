@@ -168,7 +168,9 @@ def internet_check():
         if not has_internet():
             print("[WARN] No internet connection!")
             lcd.show_message(["SYSTEM OFFLINE", "", "No internet/network", "Check WiFi config"])
-        time.sleep(CONN_CHECK_INTERVAL)
+            time.sleep(2)
+        else:
+            time.sleep(CONN_CHECK_INTERVAL)
 
 
 # === Main Loop ===

@@ -71,8 +71,8 @@ class Buzzer:
         self.play_song([('C3',0.2),('C3',0.2),('C3',0.2)])
 
     def sweep(self):
-        for note in self.NOTES:
-            self.note(note, 0.005)
+        for note in self.NOTES[::-1]:
+            self.note(note, 0.002)
             time.sleep(0.001)
 
     # Songs
