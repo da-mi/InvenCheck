@@ -56,24 +56,47 @@ employee_cache = {}
 
 
 # === NFC Logic ===
-def get_employee_by_uid(uid):
-    if str(uid) in employee_cache:
-        print(f"[INFO] Tag UID {uid} already in local cache.")
-        if employee_cache[str(uid)]["user_id"] == "Unknown":
-            print(f"[INFO] Tag UID {uid} is in local cache but Unknown, check if database has been updated.")
+def load_all_employees():
+    print("[INIT] Loading all employees from Supabase...")
+    url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?select=uid,user_id"
+    try:
+        response = requests.get(url, headers=HEADERS)
+        if response.status_code == 200:
+            for employee in response.json():
+                employee_cache[str(employee["uid"])] = employee
+            print(f"[INIT] Loaded {len(employee_cache)} employees into cache.")
         else:
-            return employee_cache[str(uid)]
+            print(f"[ERROR] Failed to load employee list: {response.text}")
+    except Exception as e:
+        print(f"[ERROR] Exception while loading employees: {e}")
 
+def nightly_employee_refresh():
+    while True:
+        now = datetime.now()
+        next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        if now >= next_run:
+            next_run = next_run.replace(day=now.day + 1)
+        sleep_duration = (next_run - now).total_seconds()
+        print(f"[INFO] Next employee cache refresh in {sleep_duration / 3600:.2f} hours.")
+        time.sleep(sleep_duration)
+        load_all_employees()
+
+def get_employee_by_uid(uid):
+    uid_str = str(uid)
+    if uid_str in employee_cache:
+        return employee_cache[uid_str]
+
+    print(f"[INFO] UID {uid} not found in cache. Checking remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}"
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
         data = response.json()
         if data:
-            employee_cache[str(uid)] = data[0]
-            print(f"[DB] Tag UID {uid} fetched from remote database.")
+            employee_cache[uid_str] = data[0]
+            print(f"[DB] UID {uid} fetched and cached.")
             return data[0]
     else:
-        print(f"[ERROR] Failed to fetch employee: {response.text}")
+        print(f"[ERROR] Failed to fetch UID {uid}: {response.text}")
     return None
 
 def register_unknown_employee(uid):
@@ -177,10 +200,12 @@ def internet_check():
 def main_loop():
     print("\033[1;36m**** TDK InvenCheck - NFC Attendance System ****\033[0m")
     print("\033[1;36mdamiano.milani@tdk.com - 2025\033[0m")
-    buzzer.online()
-
+    
+    load_all_employees()
+    threading.Thread(target=nightly_employee_refresh, daemon=True).start()
     threading.Thread(target=device_heartbeat, daemon=True).start()
     threading.Thread(target=internet_check, daemon=True).start()
+    buzzer.online()
 
     while True:
         print("\n[NFC] Waiting for NFC Tag...")
