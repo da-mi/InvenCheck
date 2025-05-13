@@ -106,7 +106,7 @@ now = datetime.now(pytz.UTC)
 recent_unknowns = users_df[(users_df["user_id"].str.lower() == "unknown") & ((now - pd.to_datetime(users_df["timestamp"], utc=True)).dt.total_seconds() < 600)].copy()
 
 if not recent_unknowns.empty:
-    recent_unknowns["time_ago"] = (now - pd.to_datetime(recent_unknowns["timestamp"], utc=True)).apply(lambda x: f"{int(x.total_seconds() // 60)} min ago")
+    recent_unknowns["time_ago"] = (now - pd.to_datetime(recent_unknowns["timestamp"], utc=True)).apply(lambda x: f"{int(x.total_seconds())} sec ago")
     unknown_options = [f"{row['uid']} ({row['time_ago']})" for _, row in recent_unknowns.iterrows()]
     selected_label = st.sidebar.selectbox("Select Unknown UID", unknown_options)
     selected_uid = selected_label.split(" ")[0]
@@ -119,7 +119,7 @@ if not recent_unknowns.empty:
         st.cache_data.clear()
         st.rerun()
 else:
-    st.sidebar.selectbox("Select Unknown Tag UID (last 10min)", ["No recent unknown users"], disabled=True)
+    st.sidebar.selectbox("Select Unknown Tag UID (last 5min)", ["No recent unknown users"], disabled=True)
     st.sidebar.text_input("Assign New User Name to Tag UID", disabled=True)
     st.sidebar.button("Assign ID", icon=":material/nfc:", type="primary", disabled=True)
 
