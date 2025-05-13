@@ -36,8 +36,9 @@ class LCD:
         with self.lock:
             self.clear()
             for i, line in enumerate(lines[:4]):
-                self.lcd.cursor_pos = (i, 0)
-                self.lcd.write_string(line.ljust(20))
+                if len(line):
+                    self.lcd.cursor_pos = (i, 0)
+                    self.lcd.write_string(line.ljust(20))
             self.current_lines = lines
 
     def show_message(self, lines, duration=None):
