@@ -80,11 +80,15 @@ class Buzzer:
         song = [
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('AS4', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4),  
         ('C5', 0.4), ('D4', 0.4), ('FS4', 0.4), ('D4', 0.4), ('A4', 0.4), ('D4', 0.4), ('FS4', 0.4), ('D4', 0.4),  
+        ]
+        self.play_song(song, tempo=0.8, pause=0.05)
+    def matrix2(self):
+        song = [
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('D5', 0.4), ('D4', 0.4), ('AS4', 0.4), ('D4', 0.4),  
         ('AS4', 0.4), ('C4', 0.4), ('DS4', 0.4), ('C4', 0.4), ('A4', 0.4), ('DS4', 0.4), ('C5', 0.4), ('DS4', 0.4),  
         ]
         self.play_song(song, tempo=0.8, pause=0.05)
-    def matrix2(self):
+    def matrix3(self):
         song = [
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('AS4', 0.4), ('G4', 0.4), ('D5', 0.4), ('AS4', 0.4),  
         ('G5', 0.4), ('G4', 0.4), ('AS4', 0.4), ('G4', 0.4), ('DS5', 0.4), ('AS4', 0.4), ('G5', 0.4), ('AS4', 0.4),  
@@ -223,7 +227,6 @@ class Buzzer:
 
 if __name__ == "__main__":
     buzzer = Buzzer(pin=13)  # GPIO18 supports hardware PWM0
-    # buzzer.harry_potter()
-    buzzer.matrix()
+    buzzer.harry_potter()
     buzzer.close()
 
