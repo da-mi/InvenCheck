@@ -81,13 +81,13 @@ class Buzzer:
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('AS4', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4),  
         ('C5', 0.4), ('D4', 0.4), ('FS4', 0.4), ('D4', 0.4), ('A4', 0.4), ('D4', 0.4), ('FS4', 0.4), ('D4', 0.4),  
         ]
-        self.play_song(song, tempo=0.8, pause=0.05)
+        self.play_song(song, tempo=0.7, pause=0.05)
     def matrix2(self):
         song = [
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('D5', 0.4), ('D4', 0.4), ('AS4', 0.4), ('D4', 0.4),  
         ('AS4', 0.4), ('C4', 0.4), ('DS4', 0.4), ('C4', 0.4), ('A4', 0.4), ('DS4', 0.4), ('C5', 0.4), ('DS4', 0.4),  
         ]
-        self.play_song(song, tempo=0.8, pause=0.05)
+        self.play_song(song, tempo=0.7, pause=0.05)
     def matrix3(self):
         song = [
         ('REST', 0.4), ('D4', 0.4), ('G4', 0.4), ('D4', 0.4), ('AS4', 0.4), ('G4', 0.4), ('D5', 0.4), ('AS4', 0.4),  
@@ -100,7 +100,7 @@ class Buzzer:
         ('D5', 0.4), ('AS4', 0.4), ('G5', 0.4), ('D5', 0.4), ('AS5', 0.4), ('G5', 0.4), ('D6', 0.4), ('AS5', 0.4), 
         ('G6', 0.4)
         ]
-        self.play_song(song, tempo=0.8, pause=0.05)
+        self.play_song(song, tempo=0.7, pause=0.05)
 
     def mario(self):
         song = [
