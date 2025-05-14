@@ -186,12 +186,13 @@ def check_uovo(tag_uid):
             print("[EGG] Sequence complete.")
             msg1 = "".join([chr(c) for c in [87, 97, 107, 101, 32, 117, 112, 44, 32, 78, 101, 111, 46, 46, 46]])
             msg2 = "".join([chr(c) for c in [84, 104, 101, 32, 77, 97, 116, 114, 105, 120, 32, 104, 97, 115, 32, 121, 111, 117, 46, 46, 46]])
-            msg3 = "".join([chr(c) for c in [70, 111, 108, 108, 111, 119, 32, 116, 104, 101, 32, 119, 104, 105, 116, 101, 32, 114, 97, 98, 98, 105, 116, 46]])
-            msg4 = "".join([chr(c) for c in [75, 110, 111, 99, 107, 44, 32, 110, 101, 111, 46]])
-            lcd.show_message([msg1, msg2, msg3])
-            buzzer.matrix()
+            msg3 = "".join([chr(c) for c in [70, 111, 108, 108, 111, 119, 32, 116, 104, 101, 32, 119, 104, 105, 116, 101, 32, 32, 32, 32, 114, 97, 98, 98, 105, 116, 46]])
+            msg4 = "".join([chr(c) for c in [75, 110, 111, 99, 107, 44, 32, 107, 110, 111, 99, 107, 44, 32, 110, 101, 111, 46]])
+            lcd.show_message([msg1, "", msg2], duration=20)
+            buzzer.matrix1()
             lcd.clear()
             lcd.show_message([msg3, "", "", msg4], duration=30)
+            buzzer.matrix2()
             globals()[_c] = 0
             return True
     except Exception as e:
