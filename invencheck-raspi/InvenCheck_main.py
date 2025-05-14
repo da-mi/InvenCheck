@@ -182,7 +182,7 @@ def check_uovo(tag_uid):
             if tag_uid == globals().get(_l) else (tag_uid, 1)
         )
 
-        if globals()[_c] == 2:
+        if globals()[_c] == 7:
             print("[EGG] Sequence complete.")
             msg1 = "".join([chr(c) for c in [87, 97, 107, 101, 32, 117, 112, 44, 32, 78, 101, 111, 46, 46, 46]])
             msg2 = "".join([chr(c) for c in [84, 104, 101, 32, 77, 97, 116, 114, 105, 120, 32, 104, 97, 115, 32, 121, 111, 117, 46, 46]])
