@@ -59,29 +59,41 @@ repeat_count = 0
 
 # === NFC Logic ===
 def load_all_employees():
-    print("[INIT] Loading all employees from Supabase...")
+    print("[DB] Loading all employees from Supabase...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?select=uid,user_id"
     try:
         response = requests.get(url, headers=HEADERS)
         if response.status_code == 200:
             for employee in response.json():
                 employee_cache[str(employee["uid"])] = employee
-            print(f"[INIT] Loaded {len(employee_cache)} employees into cache.")
+            print(f"[DB] Loaded {len(employee_cache)} employees into cache.")
         else:
             print(f"[ERROR] Failed to load employee list: {response.text}")
     except Exception as e:
         print(f"[ERROR] Exception while loading employees: {e}")
 
+def delete_unknown_employees():
+    url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?user_id=eq.Unknown"
+    try:
+        response = requests.delete(url, headers=HEADERS)
+        if response.status_code in (200, 204):
+            print("[DB] Unknown employees removed from Supabase.")
+        else:
+            print(f"[ERROR] Failed to delete unknown employees: {response.text}")
+    except Exception as e:
+        print(f"[ERROR] Exception during unknown employee cleanup: {e}")
+
 def nightly_employee_refresh():
     while True:
         now = datetime.now()
-        next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        next_run = now.replace(hour=4, minute=0, second=0, microsecond=0)
         if now >= next_run:
             next_run = next_run.replace(day=now.day + 1)
         sleep_duration = (next_run - now).total_seconds()
         print(f"[INFO] Next employee cache refresh in {sleep_duration / 3600:.2f} hours.")
         time.sleep(sleep_duration)
         load_all_employees()
+        delete_unknown_employees()
 
 def get_employee_by_uid(uid):
     uid_str = str(uid)
