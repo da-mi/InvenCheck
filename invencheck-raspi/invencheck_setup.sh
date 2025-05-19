@@ -31,7 +31,11 @@ setup_base() {
     systemctl start pigpiod
 
     echo "=== Force time wait sync ==="
+    systemctl enable systemd-timesyncd
+    systemctl start systemd-timesyncd
     systemctl enable systemd-time-wait-sync
+    systemctl start systemd-time-wait-sync
+
 
     # echo "=== Reduce systemd timeouts ==="
     # for CONF in /etc/systemd/system.conf /etc/systemd/user.conf; do
