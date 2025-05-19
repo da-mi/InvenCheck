@@ -92,8 +92,8 @@ def nightly_employee_refresh():
         sleep_duration = (next_run - now).total_seconds()
         print(f"[INFO] Next employee cache refresh in {sleep_duration / 3600:.2f} hours.")
         time.sleep(sleep_duration)
-        load_all_employees()
         delete_unknown_employees()
+        load_all_employees()
 
 def get_employee_by_uid(uid):
     uid_str = str(uid)
