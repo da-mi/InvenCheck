@@ -28,4 +28,4 @@ if __name__ == "__main__":
     elif mode == "shutdown":
         lcd.show_message(["REBOOTING SYSTEM...", "", f"{socket.gethostname()}", "Please wait 10s..."])
     elif mode == "stopped":
-        lcd.show_message(["INVENCHECK SERVICE", "OR RASPI OS STOPPED!", f"{socket.gethostname()}", "Please wait/reboot.."])
+        lcd.show_message(["INVENCHECK SERVICE", "OR RASPI OS STOPPED!", f"Host: {socket.gethostname()}", "Please wait/reboot.."])
