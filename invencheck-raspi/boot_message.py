@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     mode = sys.argv[1]
     if mode == "boot":
-        lcd.show_message([" SYSTEM IS STARTING", f"Host: {socket.gethostname()}", "WiFi and NTP sync",  "Please wait..."])
+        lcd.show_message([" SYSTEM IS STARTING", f"Host: {socket.gethostname()}", "WiFi conn & NTP sync",  "Please wait..."])
     elif mode == "shutdown":
         lcd.show_message(["REBOOTING SYSTEM...", "", f"{socket.gethostname()}", "Please wait 10s..."])
     elif mode == "stopped":
