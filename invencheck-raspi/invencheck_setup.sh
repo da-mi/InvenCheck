@@ -72,8 +72,8 @@ setup_service() {
     cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=InvenCheck NFC Attendance System
-After=network-online.target systemd-time-wait-sync.service
-Wants=network-online.target systemd-time-wait-sync.service
+After=network-online.target systemd-time-wait-sync.service pigpiod.service
+Wants=network-online.target systemd-time-wait-sync.service pigpiod.service
 
 [Service]
 Type=simple
