@@ -37,11 +37,11 @@ setup_base() {
     sed -i 's/^#watchdog-device/watchdog-device/' /etc/watchdog.conf
     systemctl enable watchdog
 
-    echo "=== Disabling IPv6 system-wide ==="
-    sysctl_conf="/etc/sysctl.d/99-disable-ipv6.conf"
-    echo "net.ipv6.conf.all.disable_ipv6 = 1" > $sysctl_conf
-    echo "net.ipv6.conf.default.disable_ipv6 = 1" >> $sysctl_conf
-    sysctl -p $sysctl_conf
+    # echo "=== Disabling IPv6 system-wide ==="
+    # sysctl_conf="/etc/sysctl.d/99-disable-ipv6.conf"
+    # echo "net.ipv6.conf.all.disable_ipv6 = 1" > $sysctl_conf
+    # echo "net.ipv6.conf.default.disable_ipv6 = 1" >> $sysctl_conf
+    # sysctl -p $sysctl_conf
 
     echo "=== Disabling Wi-Fi power management ==="
     IWCONFIG_OUT=$(iwconfig 2>/dev/null | grep -o "wlan[0-9]*" || true)
@@ -70,6 +70,33 @@ EOF
     systemctl restart snmpd
 
     echo "=== Base system setup complete ==="
+}
+
+enable_usb_gadget() {
+    echo "=== Enabling USB Gadget Mode (OTG) ==="
+
+    BOOT_CONFIG="/boot/config.txt"
+    CMDLINE_FILE="/boot/cmdline.txt"
+    MODULES_FILE="/etc/modules"
+
+    echo "-> Ensuring 'dtoverlay=dwc2' in $BOOT_CONFIG"
+    grep -q "^dtoverlay=dwc2" "$BOOT_CONFIG" || echo "dtoverlay=dwc2" >> "$BOOT_CONFIG"
+
+    echo "-> Adding 'modules-load=dwc2,g_ether' to $CMDLINE_FILE"
+    if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE_FILE"; then
+        sed -i 's| root=| modules-load=dwc2,g_ether root=|' "$CMDLINE_FILE"
+    fi
+
+#     echo "-> Ensuring required modules are listed in $MODULES_FILE"
+#     grep -q "^dwc2" "$MODULES_FILE" || echo "dwc2" >> "$MODULES_FILE"
+#     grep -q "^g_ether" "$MODULES_FILE" || echo "g_ether" >> "$MODULES_FILE"
+
+#     echo "-> Setting up udev rule for USB gadget network interface (usb0)"
+#     cat <<EOF >/etc/udev/rules.d/90-usb-gadget.rules
+# SUBSYSTEM=="usb", ATTR{idVendor}=="1d6b", ATTR{idProduct}=="0104", ACTION=="add", RUN+="/sbin/ifconfig usb0 up"
+# EOF
+
+    echo "-> USB gadget mode setup done. A reboot is required to activate."
 }
 
 setup_venv() {
@@ -189,7 +216,9 @@ case "$1" in
         clone_repo
         setup_venv
         setup_service
-        echo "All done. To see logs: journalctl -u $SERVICE_NAME -f"
+        enable_usb_gadget
+        echo "All done. Reboot is required to activate USB gadget mode."
+        echo "To see logs: journalctl -u $SERVICE_NAME -f"
         ;;
     update)
         update_repo
