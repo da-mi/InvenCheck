@@ -88,18 +88,75 @@ enable_usb_gadget() {
     if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE_FILE"; then
         sed -i 's|\(rootwait\)|\1 modules-load=dwc2,g_ether|' "$CMDLINE_FILE"
     fi
-
-#     echo "-> Ensuring required modules are listed in $MODULES_FILE"
-#     grep -q "^dwc2" "$MODULES_FILE" || echo "dwc2" >> "$MODULES_FILE"
-#     grep -q "^g_ether" "$MODULES_FILE" || echo "g_ether" >> "$MODULES_FILE"
-
-#     echo "-> Setting up udev rule for USB gadget network interface (usb0)"
-#     cat <<EOF >/etc/udev/rules.d/90-usb-gadget.rules
-# SUBSYSTEM=="usb", ATTR{idVendor}=="1d6b", ATTR{idProduct}=="0104", ACTION=="add", RUN+="/sbin/ifconfig usb0 up"
-# EOF
-
+    setup_usb_gadget_networkmanager
     echo "-> USB gadget mode setup done. A reboot is required to activate."
 }
+
+setup_usb_gadget_networkmanager() {
+    echo "-> Configuring NetworkManager for USB gadget (usb0)..."
+
+    # 1. Patch the unmanaged rule if it exists
+    if [ -f /usr/lib/udev/rules.d/85-nm-unmanaged.rules ]; then
+        echo "   - Patching unmanaged rule for gadget devices"
+        cp /usr/lib/udev/rules.d/85-nm-unmanaged.rules /etc/udev/rules.d/85-nm-unmanaged.rules
+        sed -i 's/^[^#]*gadget/# &/' /etc/udev/rules.d/85-nm-unmanaged.rules
+    fi
+
+    # 2. Create primary DHCP connection file
+    CONNFILE1=/etc/NetworkManager/system-connections/usb0-dhcp.nmconnection
+    UUID1=$(uuidgen)
+    echo "   - Creating DHCP config for usb0 ($CONNFILE1)"
+    cat <<EOF > "$CONNFILE1"
+[connection]
+id=usb0-dhcp
+uuid=$UUID1
+type=ethernet
+interface-name=usb0
+autoconnect-priority=100
+autoconnect-retries=2
+
+[ethernet]
+
+[ipv4]
+dhcp-timeout=3
+method=auto
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+EOF
+
+    # 3. Create fallback link-local connection file
+    CONNFILE2=/etc/NetworkManager/system-connections/usb0-ll.nmconnection
+    UUID2=$(uuidgen)
+    echo "   - Creating link-local fallback config for usb0 ($CONNFILE2)"
+    cat <<EOF > "$CONNFILE2"
+[connection]
+id=usb0-ll
+uuid=$UUID2
+type=ethernet
+interface-name=usb0
+autoconnect-priority=50
+
+[ethernet]
+
+[ipv4]
+method=link-local
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+EOF
+
+    # 4. Fix permissions
+    chmod 600 "$CONNFILE1" "$CONNFILE2"
+    echo "-> NetworkManager usb0 configuration complete."
+}
+
 
 setup_venv() {
     echo "=== Creating Python virtual environment ==="
