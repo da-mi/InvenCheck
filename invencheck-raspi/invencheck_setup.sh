@@ -104,7 +104,7 @@ setup_usb_gadget_networkmanager() {
 
     # 2. Create primary DHCP connection file
     CONNFILE1=/etc/NetworkManager/system-connections/usb0-dhcp.nmconnection
-    UUID1=$(uuidgen)
+    UUID1=$(uuid -v4)
     echo "   - Creating DHCP config for usb0 ($CONNFILE1)"
     cat <<EOF > "$CONNFILE1"
 [connection]
@@ -130,7 +130,7 @@ EOF
 
     # 3. Create fallback link-local connection file
     CONNFILE2=/etc/NetworkManager/system-connections/usb0-ll.nmconnection
-    UUID2=$(uuidgen)
+    UUID2=$(uuid -v4)
     echo "   - Creating link-local fallback config for usb0 ($CONNFILE2)"
     cat <<EOF > "$CONNFILE2"
 [connection]
@@ -272,10 +272,10 @@ print_banner
 case "$1" in
     install)
         setup_base
+        enable_usb_gadget
         clone_repo
         setup_venv
         setup_service
-        enable_usb_gadget
         echo "All done. Reboot is required to activate USB gadget mode."
         echo "To see logs: journalctl -u $SERVICE_NAME -f"
         ;;
