@@ -75,8 +75,8 @@ EOF
 enable_usb_gadget() {
     echo "=== Enabling USB Gadget Mode (OTG) ==="
 
-    BOOT_CONFIG="/boot/config.txt"
-    CMDLINE_FILE="/boot/cmdline.txt"
+    BOOT_CONFIG="/boot/firmware/config.txt"
+    CMDLINE_FILE="/boot/firmware/cmdline.txt"
     MODULES_FILE="/etc/modules"
 
     echo "-> Ensuring 'dtoverlay=dwc2' in $BOOT_CONFIG"
