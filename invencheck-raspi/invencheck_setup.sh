@@ -9,7 +9,6 @@ PY_VENV_ALIAS="py-invencheck"
 SERVICE_NAME="invencheck"
 SNMP_COMMUNITY="itmxp-invensense"
 
-
 # === BANNER ===
 print_banner() {
     echo "#############################################"
@@ -24,26 +23,24 @@ print_banner() {
 # === FUNCTIONS ===
 
 setup_base() {
-    echo "=== Updating system ==="
+    echo "[System] Updating system..."
     apt update
+    echo
 
-    echo "=== Installing essentials ==="
-    apt install -y git python3 python3-venv python3-pip watchdog snmp snmpd
+    echo "[System] Installing required packages..."
+    apt install -y git python3 python3-venv python3-pip watchdog snmp snmpd uuid-runtime
+    echo
 
-    echo "=== Disabling unused services ==="
+    echo "[System] Disabling unused services..."
     systemctl disable bluetooth.service hciuart.service triggerhappy.service
+    echo
 
-    echo "=== Enabling watchdog ==="
+    echo "[System] Enabling watchdog..."
     sed -i 's/^#watchdog-device/watchdog-device/' /etc/watchdog.conf
     systemctl enable watchdog
+    echo
 
-    # echo "=== Disabling IPv6 system-wide ==="
-    # sysctl_conf="/etc/sysctl.d/99-disable-ipv6.conf"
-    # echo "net.ipv6.conf.all.disable_ipv6 = 1" > $sysctl_conf
-    # echo "net.ipv6.conf.default.disable_ipv6 = 1" >> $sysctl_conf
-    # sysctl -p $sysctl_conf
-
-    echo "=== Disabling Wi-Fi power management ==="
+    echo "[System] Disabling Wi-Fi power management..."
     IWCONFIG_OUT=$(iwconfig 2>/dev/null | grep -o "wlan[0-9]*" || true)
     for IFACE in $IWCONFIG_OUT; do
         iwconfig "$IFACE" power off || true
@@ -52,29 +49,33 @@ setup_base() {
 [connection]
 wifi.powersave = 2
 EOF
+    echo
 
-    echo "=== Configuring pigpiod ==="
+    echo "[Service] Configuring pigpiod..."
     systemctl enable pigpiod
     systemctl start pigpiod
+    echo
 
-    echo "=== Enabling time sync ==="
+    echo "[Service] Enabling time synchronization..."
     systemctl enable systemd-timesyncd
     systemctl start systemd-timesyncd
     systemctl enable systemd-time-wait-sync
     systemctl start systemd-time-wait-sync
+    echo
 
-    echo "=== Configuring SNMP client ==="
+    echo "[Service] Configuring SNMP client..."
     sed -i "s/^rocommunity .*/rocommunity $SNMP_COMMUNITY/" /etc/snmp/snmpd.conf || \
     echo "rocommunity $SNMP_COMMUNITY" >> /etc/snmp/snmpd.conf
     systemctl enable snmpd
     systemctl restart snmpd
+    echo
 
-    echo "=== Base system setup complete ==="
+    echo "[OK] Base system setup complete."
+    echo
 }
 
 enable_usb_gadget() {
-    echo "=== Enabling USB Gadget Mode (OTG) ==="
-
+    echo "[USB] Enabling USB Gadget Mode (OTG)..."
     BOOT_CONFIG="/boot/firmware/config.txt"
     CMDLINE_FILE="/boot/firmware/cmdline.txt"
     MODULES_FILE="/etc/modules"
@@ -88,24 +89,26 @@ enable_usb_gadget() {
     if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE_FILE"; then
         sed -i 's|\(rootwait\)|\1 modules-load=dwc2,g_ether|' "$CMDLINE_FILE"
     fi
+    echo
+
+    echo "[USB] Configuring USB gadget for NetworkManager..."
     setup_usb_gadget_networkmanager
-    echo "-> USB gadget mode setup done. A reboot is required to activate."
+
+    echo "[OK] USB gadget mode setup complete. A reboot is required."
+    echo
 }
 
 setup_usb_gadget_networkmanager() {
-    echo "-> Configuring NetworkManager for USB gadget (usb0)..."
-
-    # 1. Patch the unmanaged rule if it exists
+    echo "-> Patching unmanaged rule (if needed)..."
     if [ -f /usr/lib/udev/rules.d/85-nm-unmanaged.rules ]; then
-        echo "   - Patching unmanaged rule for gadget devices"
         cp /usr/lib/udev/rules.d/85-nm-unmanaged.rules /etc/udev/rules.d/85-nm-unmanaged.rules
         sed -i 's/^[^#]*gadget/# &/' /etc/udev/rules.d/85-nm-unmanaged.rules
     fi
+    echo
 
-    # 2. Create primary DHCP connection file
+    echo "-> Creating usb0-dhcp config..."
     CONNFILE1=/etc/NetworkManager/system-connections/usb0-dhcp.nmconnection
     UUID1=$(uuid -v4)
-    echo "   - Creating DHCP config for usb0 ($CONNFILE1)"
     cat <<EOF > "$CONNFILE1"
 [connection]
 id=usb0-dhcp
@@ -127,11 +130,11 @@ method=auto
 
 [proxy]
 EOF
+    echo
 
-    # 3. Create fallback link-local connection file
+    echo "-> Creating usb0-ll fallback config..."
     CONNFILE2=/etc/NetworkManager/system-connections/usb0-ll.nmconnection
     UUID2=$(uuid -v4)
-    echo "   - Creating link-local fallback config for usb0 ($CONNFILE2)"
     cat <<EOF > "$CONNFILE2"
 [connection]
 id=usb0-ll
@@ -151,30 +154,32 @@ method=auto
 
 [proxy]
 EOF
-
-    # 4. Fix permissions
     chmod 600 "$CONNFILE1" "$CONNFILE2"
-    echo "-> NetworkManager usb0 configuration complete."
+    echo
+
+    echo "[OK] NetworkManager usb0 configuration complete."
+    echo
 }
 
-
 setup_venv() {
-    echo "=== Creating Python virtual environment ==="
+    echo "[Python] Creating Python virtual environment..."
     mkdir -p "$INSTALL_DIR"
     python3 -m venv "$VENV_DIR"
     source "$VENV_DIR/bin/activate"
     pip install -r "$INSTALL_DIR/invencheck-raspi/requirements.txt"
     deactivate
+    echo
 
-    echo "=== Adding alias for venv Python as '$PY_VENV_ALIAS' ==="
+    echo "[Python] Adding global alias: $PY_VENV_ALIAS"
     ALIAS_LINE="alias $PY_VENV_ALIAS='$VENV_DIR/bin/python'"
     grep -qxF "$ALIAS_LINE" /etc/bash.bashrc || echo "$ALIAS_LINE" >> /etc/bash.bashrc
+    echo
 }
 
 clone_repo() {
-    echo "=== Setting up InvenCheck repo ==="
+    echo "[Git] Cloning or updating repository..."
     if [ -d "$INSTALL_DIR/.git" ]; then
-        echo "Repo already exists, updating..."
+        echo "-> Repo already exists, pulling latest..."
         cd "$INSTALL_DIR"
         git pull
     else
@@ -182,12 +187,13 @@ clone_repo() {
     fi
 
     cd "$INSTALL_DIR"
-    echo "Install/update time: $(date)"
-    echo "Current commit: $(git log -1 --pretty=format:'%h - %s (%ci)')"
+    echo "-> Install/update time: $(date)"
+    echo "-> Current commit: $(git log -1 --pretty=format:'%h - %s (%ci)')"
+    echo
 }
 
 setup_service() {
-    echo "=== Setting up systemd service ==="
+    echo "[Daemon] Creating systemd services..."
     SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
     cat <<EOF > "$SERVICE_FILE"
@@ -214,8 +220,9 @@ EOF
     systemctl daemon-reload
     systemctl enable "$SERVICE_NAME"
     systemctl start "$SERVICE_NAME"
+    echo
 
-    echo "=== Setting up LCD boot systemd service ==="
+    echo "-> Creating boot LCD service..."
     cat <<EOF >/etc/systemd/system/boot-lcd.service
 [Unit]
 Description=LCD Boot Message
@@ -232,37 +239,48 @@ EOF
 
     systemctl daemon-reload
     systemctl enable boot-lcd.service
+    echo
 
-    echo "=== Optimizing pigpiod to limit CPU usage ==="
+    echo "-> Optimizing pigpiod for lower CPU usage..."
     mkdir -p /etc/systemd/system/pigpiod.service.d
     cat <<EOF >/etc/systemd/system/pigpiod.service.d/override.conf
 [Service]
 ExecStart=
 ExecStart=/usr/bin/pigpiod -l -m
 EOF
+
     systemctl daemon-reexec
     systemctl daemon-reload
     systemctl restart pigpiod
+    echo
+
+    echo "[OK] Systemd service setup complete."
+    echo
 }
 
 update_repo() {
+    echo "[Git] Checking repository..."
     if [ ! -d "$INSTALL_DIR/.git" ]; then
-        echo "Repo not found at $INSTALL_DIR"
+        echo "-> Repo not found at $INSTALL_DIR"
         exit 1
     fi
 
-    echo "=== Updating InvenCheck repo ==="
+    echo "-> Pulling latest changes..."
     cd "$INSTALL_DIR"
     git pull
-    echo "Update time: $(date)"
-    echo "Current commit: $(git log -1 --pretty=format:'%h - %s (%ci)')"
+    echo "-> Update time: $(date)"
+    echo "-> Current commit: $(git log -1 --pretty=format:'%h - %s (%ci)')"
+    echo
 
+    echo "-> Updating Python dependencies..."
     source "$VENV_DIR/bin/activate"
     pip install -r "$INSTALL_DIR/invencheck-raspi/requirements.txt"
     deactivate
+    echo
 
     systemctl restart "$SERVICE_NAME"
-    echo "=== Update complete and service restarted ==="
+    echo "[OK] Update complete and service restarted."
+    echo
 }
 
 # === ENTRY POINT ===
@@ -276,8 +294,10 @@ case "$1" in
         clone_repo
         setup_venv
         setup_service
-        echo "All done. Reboot is required to activate USB gadget mode."
-        echo "To see logs: journalctl -u $SERVICE_NAME -f"
+
+        echo "=== INSTALLATION COMPLETE ==="
+        echo "-> Reboot is required to activate USB gadget mode."
+        echo "-> To monitor logs: journalctl -u $SERVICE_NAME -f"
         ;;
     update)
         update_repo
