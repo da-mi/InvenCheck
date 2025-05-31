@@ -81,7 +81,7 @@ enable_usb_gadget() {
 
     echo "-> Ensuring 'dtoverlay=dwc2' in $BOOT_CONFIG"
     if ! grep -q "dtoverlay=dwc2,dr_mode=peripheral" "$BOOT_CONFIG"; then
-        echo -e "\n[all]\ndtoverlay=dwc2,dr_mode=peripheral" >> "$BOOT_CONFIG"
+        echo -e "dtoverlay=dwc2,dr_mode=peripheral" >> "$BOOT_CONFIG"
     fi
 
     echo "-> Adding 'modules-load=dwc2,g_ether' to $CMDLINE_FILE"
