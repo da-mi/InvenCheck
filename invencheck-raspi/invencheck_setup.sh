@@ -80,11 +80,13 @@ enable_usb_gadget() {
     MODULES_FILE="/etc/modules"
 
     echo "-> Ensuring 'dtoverlay=dwc2' in $BOOT_CONFIG"
-    grep -q "^dtoverlay=dwc2" "$BOOT_CONFIG" || echo "dtoverlay=dwc2" >> "$BOOT_CONFIG"
+    if ! grep -q "dtoverlay=dwc2,dr_mode=peripheral" "$BOOT_CONFIG"; then
+        echo -e "\n[all]\ndtoverlay=dwc2,dr_mode=peripheral" >> "$BOOT_CONFIG"
+    fi
 
     echo "-> Adding 'modules-load=dwc2,g_ether' to $CMDLINE_FILE"
     if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE_FILE"; then
-        sed -i 's| root=| modules-load=dwc2,g_ether root=|' "$CMDLINE_FILE"
+        sed -i 's|\(rootwait\)|\1 modules-load=dwc2,g_ether|' "$CMDLINE_FILE"
     fi
 
 #     echo "-> Ensuring required modules are listed in $MODULES_FILE"
