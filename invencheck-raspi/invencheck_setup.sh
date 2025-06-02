@@ -23,18 +23,6 @@ print_banner() {
 # === FUNCTIONS ===
 
 setup_base() {
-# Stop pigpiod if running
-    if pgrep -x pigpiod >/dev/null; then
-        echo "[System] Stopping pigpiod..."
-        sudo systemctl stop pigpiod
-    fi
-
-    # Stop user-defined service if active
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        echo "[System] Stopping $SERVICE_NAME..."
-        sudo systemctl stop "$SERVICE_NAME"
-    fi
-
     echo "[System] Updating system..."
     apt update
     echo
