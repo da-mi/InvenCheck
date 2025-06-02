@@ -54,15 +54,15 @@ def load_attendance():
 
 @st.cache_data(ttl=60)
 def load_devices():
-    response = supabase.table("devices").select("device_id, timestamp, location").execute()
+    response = supabase.table("devices").select("device_id, timestamp, location, ip").execute()
     df = pd.DataFrame(response.data)
     if df.empty:
-        return pd.DataFrame(columns=["device_id", "timestamp", "location", "status", "last_seen"])
+        return pd.DataFrame(columns=["device_id", "location", "ip", "status", "last_seen"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     now = datetime.now(pytz.UTC)
     df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1200 else "🔴 Offline")
     df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
-    return df[["device_id", "location", "status", "last_seen"]]
+    return df[["device_id", "location", "ip", "status", "last_seen"]]
 
 @st.cache_data(ttl=300)
 def load_users():
@@ -160,8 +160,9 @@ else:
         "device_id": "Device",
         "location": "Location",
         "status": "Status",
+        "ip": "IP",
         "last_seen": "Last seen"
-    }), column_config={'Last seen': None}, hide_index=True, use_container_width=True)
+    }), column_config={'Last seen': None, 'IP': None}, hide_index=True, use_container_width=True)
 
 
 
