@@ -78,7 +78,7 @@ class LCD:
             self.show_message(lines, duration=self.diag_duration)
 
         except Exception as e:
-            self.show_message(["Diagnostic Fail", str(e)[:20], "", ""], duration=self.diag_duration)
+            self.show_message(["Diagnostic Fail", str(e), "", ""], duration=self.diag_duration)
     
     def _default_screen(self, force=False):
         now = datetime.now()

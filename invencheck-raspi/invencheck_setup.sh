@@ -13,9 +13,9 @@ SNMP_COMMUNITY="itmxp-invensense"
 print_banner() {
     echo "#############################################"
     echo "#    InvenCheck NFC Attendance System       #"
-    echo "#    Damiano Milani  - 2025                 #"
+    echo "#    Damiano Milani - 2025                  #"
     echo "#                                           #"
-    echo "#    Installer & Updater Script - v1.0      #"
+    echo "#    Installer & Updater Script             #"
     echo "#############################################"
     echo
 }
@@ -28,7 +28,7 @@ setup_base() {
     echo
 
     echo "[System] Installing required packages..."
-    apt install -y git python3 python3-venv python3-pip watchdog snmp snmpd uuid-runtime
+    apt install -y git python3 python3-venv python3-pip watchdog snmp snmpd
     echo
 
     echo "[System] Disabling unused services..."
