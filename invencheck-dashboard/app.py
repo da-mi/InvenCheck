@@ -60,7 +60,7 @@ def load_devices():
         return pd.DataFrame(columns=["device_id", "location", "ip", "status", "last_seen"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     now = datetime.now(pytz.UTC)
-    df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1200 else "🔴 Offline")
+    df["status"] = df["timestamp"].apply(lambda x: "🟢 Online" if (now - x).total_seconds() < 1500 else "🔴 Offline")
     df["last_seen"] = df["timestamp"].dt.tz_convert("Europe/Rome").dt.strftime("%Y-%m-%d %H:%M")
     return df[["device_id", "location", "ip", "status", "last_seen"]]
 
