@@ -194,6 +194,17 @@ clone_repo() {
 
 setup_service() {
     echo "[Daemon] Creating systemd services..."
+    
+    echo "-> Optimizing pigpiod for lower CPU usage..."
+    mkdir -p /etc/systemd/system/pigpiod.service.d
+    cat <<EOF >/etc/systemd/system/pigpiod.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=/usr/bin/pigpiod -l -m
+EOF
+    
+    echo
+    echo "-> Creating InvenCheck service..."
     SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
     cat <<EOF > "$SERVICE_FILE"
@@ -216,12 +227,7 @@ User=morpheus
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reexec
-    systemctl daemon-reload
-    systemctl enable "$SERVICE_NAME"
-    systemctl start "$SERVICE_NAME"
     echo
-
     echo "-> Creating boot LCD service..."
     cat <<EOF >/etc/systemd/system/boot-lcd.service
 [Unit]
@@ -237,24 +243,18 @@ ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/invencheck-raspi/boot_message.py boo
 WantedBy=sysinit.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable boot-lcd.service
     echo
-
-    echo "-> Optimizing pigpiod for lower CPU usage..."
-    mkdir -p /etc/systemd/system/pigpiod.service.d
-    cat <<EOF >/etc/systemd/system/pigpiod.service.d/override.conf
-[Service]
-ExecStart=
-ExecStart=/usr/bin/pigpiod -l -m
-EOF
-
+    echo "-> Running new services..."
     systemctl daemon-reexec
     systemctl daemon-reload
+    systemctl daemon-reload
     systemctl restart pigpiod
+    systemctl enable boot-lcd.service
+    systemctl enable "$SERVICE_NAME"
+    systemctl start "$SERVICE_NAME"
+    
     echo
-
-    echo "[OK] Systemd service setup complete."
+    echo "[OK] Systemd services setup complete."
     echo
 }
 
