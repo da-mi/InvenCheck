@@ -23,6 +23,18 @@ print_banner() {
 # === FUNCTIONS ===
 
 setup_base() {
+# Stop pigpiod if running
+    if pgrep -x pigpiod >/dev/null; then
+        echo "[System] Stopping pigpiod..."
+        sudo systemctl stop pigpiod
+    fi
+
+    # Stop user-defined service if active
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        echo "[System] Stopping $SERVICE_NAME..."
+        sudo systemctl stop "$SERVICE_NAME"
+    fi
+
     echo "[System] Updating system..."
     apt update
     echo
@@ -104,7 +116,6 @@ setup_usb_gadget_networkmanager() {
         cp /usr/lib/udev/rules.d/85-nm-unmanaged.rules /etc/udev/rules.d/85-nm-unmanaged.rules
         sed -i 's/^[^#]*gadget/# &/' /etc/udev/rules.d/85-nm-unmanaged.rules
     fi
-    echo
 
     echo "-> Creating usb0-dhcp config..."
     CONNFILE1=/etc/NetworkManager/system-connections/usb0-dhcp.nmconnection
@@ -130,7 +141,6 @@ method=auto
 
 [proxy]
 EOF
-    echo
 
     echo "-> Creating usb0-ll fallback config..."
     CONNFILE2=/etc/NetworkManager/system-connections/usb0-ll.nmconnection
@@ -155,7 +165,6 @@ method=auto
 [proxy]
 EOF
     chmod 600 "$CONNFILE1" "$CONNFILE2"
-    echo
 
     echo "[OK] NetworkManager usb0 configuration complete."
     echo
