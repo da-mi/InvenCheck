@@ -183,9 +183,8 @@ clone_repo() {
         git clone "$REPO_URL" "$INSTALL_DIR"
     fi
     
-    CURRENT_USER=$(whoami)
-    echo "-> Setting Git safe.directory for ${INSTALL_DIR} (user: ${CURRENT_USER})"
-    sudo -u "$CURRENT_USER" git config --global --add safe.directory "$INSTALL_DIR"
+    echo "-> Setting Git safe.directory for ${INSTALL_DIR}"
+    git config --system --add safe.directory "$INSTALL_DIR"
 
     cd "$INSTALL_DIR"
     echo "-> Install/update time: $(date)"
