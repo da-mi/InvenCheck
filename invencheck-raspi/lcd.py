@@ -76,10 +76,12 @@ class LCD:
             except:
                 ip_usb = "N/A"
 
-            # Git info
+            # Git info from parent directory
             try:
-                git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()[:7]
-                git_raw_date = subprocess.check_output(['git', 'log', '-1', '--format=%cd'], text=True).strip()
+                import os
+                repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                git_hash = subprocess.check_output(['git', '-C', repo_dir, 'rev-parse', 'HEAD'], text=True).strip()[:7]
+                git_raw_date = subprocess.check_output(['git', '-C', repo_dir, 'log', '-1', '--format=%cd'], text=True).strip()
                 git_date = datetime.strptime(git_raw_date, '%a %b %d %H:%M:%S %Y %z').strftime('%d%b%y')
             except:
                 git_hash = "no-git"
@@ -118,29 +120,15 @@ class LCD:
             return screen1, screen2
 
         try:
-            start_time = time.time()
             screen1, screen2 = get_diagnostic_screens()
-            screens = [screen1, screen2]
-            index = 0
-
-            with self.lock:
-                self.last_interaction_time = time.time()
-                self.active_message_until = self.last_interaction_time + self.diag_duration
-                self.lcd.backlight_enabled = True
-
-            while time.time() - start_time < self.diag_duration:
-                with self.lock:
-                    if time.time() >= self.active_message_until:
-                        break  # Another show_message was called externally
-
-                self._write_lines(screens[index % 2])
-                index += 1
-                time.sleep(5)
-
+            self.show_message(screen1, duration=5)
+            time.sleep(5)
+            self.show_message(screen2, duration=5)
+            time.sleep(5)
             self._default_screen(force=True)
-
         except Exception as e:
-            self.show_message(["Diagnostic Fail", str(e)[:20], "", ""], duration=self.diag_duration)
+            self.show_message(["Diagnostic Fail", str(e)[:20], "", ""], duration=self.default_interval)
+
     
     def _default_screen(self, force=False):
         now = datetime.now()
@@ -153,7 +141,7 @@ class LCD:
         self.default_screen_lines = [
             "***  InvenCheck  ***",
             "",
-            "Place NFC Tag below",
+            "Place NFC tag below",
             current_minute
         ]
         self._write_lines(self.default_screen_lines)

@@ -268,7 +268,7 @@ def main_loop():
     buzzer.online()
 
     while True:
-        print("\n[NFC] Waiting for NFC Tag...")
+        print("\n[NFC] Waiting for NFC tag...")
         try:
             uid = nfc.read_uid()
             print(f"[NFC] Tag detected: UID {uid}")
@@ -293,8 +293,9 @@ def main_loop():
             
             if employee['user_id'].lower() == "morpheus":
                 print("[INFO] God Mode activated")
-                lcd.show_diagnostic()
                 buzzer.sweep()
+                lcd.show_diagnostic()
+                buzzer.read()
                 continue
 
             user_id = employee["user_id"]
