@@ -292,10 +292,11 @@ def main_loop():
                 continue
             
             if employee['user_id'].lower() == "morpheus":
-                print("[INFO] God Mode activated")
+                print("[INFO] Diagnostic Mode activated")
+                lcd.show_message(["***  InvenCheck  ***","","DIAGNOSTIC MODE",""])
                 buzzer.sweep()
                 lcd.show_diagnostic()
-                buzzer.read()
+                buzzer.checkin()
                 continue
 
             user_id = employee["user_id"]
