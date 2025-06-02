@@ -10,6 +10,8 @@ import os
 import time
 import threading
 import socket
+import fcntl
+import struct
 import requests
 from datetime import datetime
 from datetime import time as dt_time
@@ -215,9 +217,24 @@ def check_uovo(tag_uid):
 
 
 # === Heartbeat ===
+def get_wlan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        return socket.inet_ntoa(fcntl.ioctl(
+            s.fileno(),
+            0x8915,  # SIOCGIFADDR
+            struct.pack('256s', b'wlan0'[:15])
+        )[20:24])
+    except Exception:
+        return None
+    
 def device_heartbeat():
     while True:
-        payload = {"timestamp": datetime.utcnow().isoformat()}
+        ip = get_wlan_ip()
+        payload = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "ip": ip
+        }
         try:
             response = requests.patch(
                 f"{SUPABASE_URL}/rest/v1/{DEVICES_TABLE}?device_id=eq.{DEVICE_ID}",
