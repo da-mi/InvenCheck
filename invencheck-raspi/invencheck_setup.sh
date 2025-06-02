@@ -53,7 +53,7 @@ EOF
 
     echo "[Service] Configuring pigpiod..."
     systemctl enable pigpiod
-    systemctl start pigpiod
+    #systemctl start pigpiod
     echo
 
     echo "[Service] Enabling time synchronization..."
@@ -203,7 +203,6 @@ ExecStart=
 ExecStart=/usr/bin/pigpiod -l -m
 EOF
     
-    echo
     echo "-> Creating InvenCheck service..."
     SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
@@ -227,7 +226,6 @@ User=morpheus
 WantedBy=multi-user.target
 EOF
 
-    echo
     echo "-> Creating boot LCD service..."
     cat <<EOF >/etc/systemd/system/boot-lcd.service
 [Unit]
@@ -243,17 +241,15 @@ ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/invencheck-raspi/boot_message.py boo
 WantedBy=sysinit.target
 EOF
 
-    echo
     echo "-> Running new services..."
     systemctl daemon-reexec
     systemctl daemon-reload
     systemctl daemon-reload
-    systemctl restart pigpiod
+    systemctl is-active --quiet pigpiod && systemctl restart pigpiod || systemctl start pigpiod
     systemctl enable boot-lcd.service
     systemctl enable "$SERVICE_NAME"
-    systemctl start "$SERVICE_NAME"
+    systemctl is-active --quiet "$SERVICE_NAME" && systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
     
-    echo
     echo "[OK] Systemd services setup complete."
     echo
 }
