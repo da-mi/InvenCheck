@@ -75,6 +75,7 @@ def load_all_employees():
         print(f"[ERROR] Exception while loading employees: {e}")
 
 def delete_unknown_employees():
+    print("[DB] Cleaning unknown tags from remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?user_id=eq.Unknown"
     try:
         response = requests.delete(url, headers=HEADERS)
@@ -106,7 +107,7 @@ def get_employee_by_uid(uid):
         else:
             return employee_cache[uid_str]
 
-    print(f"[INFO] Tag UID {uid} not found in cache. Checking remote database...")
+    print(f"[DB] Tag UID {uid} not found in cache. Checking remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}"
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
@@ -120,6 +121,7 @@ def get_employee_by_uid(uid):
     return None
 
 def register_unknown_employee(uid):
+    print("[DB] Registering unknown tag UID...")
     payload = {"uid": str(uid), "user_id": "Unknown"}
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
@@ -131,6 +133,7 @@ def register_unknown_employee(uid):
         return None
     
 def update_unknown_timestamp(uid):
+    print("[DB] Updating timestamp for unknown UID...")
     payload = {"timestamp": datetime.utcnow().isoformat()}
     response = requests.patch(
         f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}&user_id=eq.Unknown",
@@ -149,6 +152,7 @@ def get_today_cutoff_utc():
     return local_midnight.astimezone(pytz.utc).isoformat().replace("+00:00", "Z")
 
 def get_last_action_today(user_id):
+    print(f"[DB] Retrieving today's last action for {user_id}...")
     utc_cutoff = get_today_cutoff_utc()
     url = (
         f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}"
@@ -158,12 +162,14 @@ def get_last_action_today(user_id):
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
         data = response.json()
+        print("[DB] Last action correctly retrieved.")
         return data[0]["action"] if data else None
     else:
         print(f"[ERROR] Failed to query Supabase: {response.text}")
         return None
 
-def send_event(user_id, action, device_id):
+def register_action(user_id, action, device_id):
+    print(f"[DB] Processing {action} for \"{user_id}\" at {device_id}")
     payload = {
         "user_id": user_id,
         "timestamp": datetime.utcnow().isoformat(),
@@ -197,7 +203,7 @@ def check_uovo(tag_uid):
         )
 
         if globals()[_c] == 7:
-            print("[EGG] Sequence complete.")
+            print("[EGG] Sequence activated.")
             msg1 = "".join([chr(c) for c in [87, 97, 107, 101, 32, 117, 112, 44, 32, 78, 101, 111, 46, 46, 46]])
             msg2 = "".join([chr(c) for c in [84, 104, 101, 32, 77, 97, 116, 114, 105, 120, 32, 104, 97, 115, 32, 121, 111, 117, 46, 46]])
             msg3 = "".join([chr(c) for c in [70, 111, 108, 108, 111, 119, 32, 116, 104, 101, 32, 119, 104, 105, 116, 101, 32, 32, 32, 32, 114, 97, 98, 98, 105, 116, 46]])
@@ -212,7 +218,7 @@ def check_uovo(tag_uid):
             globals()[_c] = 0
             return True
     except Exception as e:
-        print(f"[EGG ERROR] {e}")
+        print(f"[ERROR] {e}")
     return False
 
 
@@ -291,7 +297,7 @@ def main_loop():
             print(f"[NFC] Tag detected: UID {uid}")
             if check_uovo(uid):
                 continue
-            lcd.show_message(["***  InvenCheck  ***", "", "Tag detected!", "Reading database..."], duration=10)
+            lcd.show_message(["***  InvenCheck  ***", "", "Tag detected!", "Reading database..."], duration=60)
             buzzer.read()
 
             employee = get_employee_by_uid(uid)
@@ -320,8 +326,7 @@ def main_loop():
             last_action = get_last_action_today(user_id)
             action = "check_out" if last_action == "check_in" else "check_in"
 
-            print(f"[DB] Processing {action} for \"{user_id}\" at {DEVICE_ID}")
-            send_event(user_id, action, DEVICE_ID)
+            register_action(user_id, action, DEVICE_ID)
             time.sleep(0.1)
 
         except Exception as e:
