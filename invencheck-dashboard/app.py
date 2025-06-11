@@ -47,7 +47,7 @@ supabase: Client = create_client(url, key)
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
-    response = supabase.table("attendance").select("*").execute()
+    response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(0, 999).execute()
     df = pd.DataFrame(response.data)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome")
     return df.sort_values("timestamp", ascending=False)
