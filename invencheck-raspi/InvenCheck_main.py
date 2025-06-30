@@ -179,13 +179,16 @@ def register_action(user_id, action, device_id):
     response = requests.post(f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}", headers=HEADERS, json=payload)
     if response.status_code in (200, 201):
         now = datetime.now()
+        raspiside = "raspi01" in DEVICE_ID.lower()
+        in_arrow = "⌂" if raspiside else "~"
+        out_arrow = "~" if raspiside else "⌂"
         if action == "check_in":
             print(f"\033[32m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
-            lcd.show_message([user_id, "", "⌂⌂ CHECK-IN", now.strftime("%Y-%m-%d     %H:%M")])
+            lcd.show_message([user_id, "", f"{in_arrow*4}  CHECK-IN  {in_arrow*4}", now.strftime("%Y-%m-%d     %H:%M")])
             buzzer.checkin()
         else:
             print(f"\033[31m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
-            lcd.show_message([user_id, "", "~~ CHECK-OUT", now.strftime("%Y-%m-%d     %H:%M")])
+            lcd.show_message([user_id, "", f"{out_arrow*4}  CHECK-OUT  {out_arrow*3}", now.strftime("%Y-%m-%d     %H:%M")])
             buzzer.checkout()
     else:
         print(f"[ERROR] Failed to write to Supabase: {response.text}")
