@@ -119,10 +119,15 @@ def minimal_check():
         and supabase_ok
     )
 
+    print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'GW':<8}{'DNS':<10}{'8.8.8.8':<10}{'Web':<10}{'Supabase':<12}Status")
+    
+    print(f"{format_time(gw_time):<8}{format_time(dns_time):<10}{format_time(ext_time):<10}{format_time(web_time):<10}{format_time(supa_time):<12}", end="")
+
     if all_ok:
-        print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — ✅ All OK | Times: GW {gw_time}s, DNS {dns_time}s, 8.8.8.8 {ext_time}s, Web {web_time}s, Supabase {supa_time}s")
+        print("✅ All OK")
     else:
-        print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — Network Issue Detected")
+        print("⚠️ Issue Detected")
         if ssid == "NO SSID":
             print("❌ Not connected to any Wi-Fi.")
         elif ip == "NO IP":
@@ -140,7 +145,6 @@ def minimal_check():
 
 # === Main Loop ===
 if __name__ == "__main__":
-    full_report()  # Show all info once at start
     while True:
         minimal_check()
         time.sleep(5)
