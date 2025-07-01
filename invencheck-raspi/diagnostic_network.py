@@ -70,7 +70,7 @@ def format_time(t):
     """Format time with highlight if above threshold."""
     if t is None:
         return "  N/A "
-    return f"{(t*1000):5.0f}ms   "
+    return f"{(t*1000):5.0f}ms "
 
 # === Unified Report Logic ===
 def report(show_full=False):
@@ -112,8 +112,8 @@ def report(show_full=False):
         print(f"🌐 IP: {ip}")
         print(f"🚪 Gateway: {gateway or 'Not found'}\n")
 
-    print(f"{'GW':<8}{'DNS':<10}{'8.8.8.8':<10}{'Web':<10}{'Supabase':<12}Status")
-    print(f"{format_time(gw_time):<8}{format_time(dns_time):<10}{format_time(ext_time):<10}{format_time(web_time):<10}{format_time(supa_time):<12}", end="")
+    print(f"{'GW':<8}{'DNS':<8}{'8.8.8.8':<8}{'Web':<8}{'Supabase':<8}Status")
+    print(f"{format_time(gw_time):<8}{format_time(dns_time):<8}{format_time(ext_time):<8}{format_time(web_time):<8}{format_time(supa_time):<8}", end="")
 
     if not all_ok:
         print("⚠️ Issue Detected")
