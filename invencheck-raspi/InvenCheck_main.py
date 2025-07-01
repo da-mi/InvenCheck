@@ -180,8 +180,8 @@ def register_action(user_id, action, device_id):
     if response.status_code in (200, 201):
         now = datetime.now()
         raspiside = "raspi01" in DEVICE_ID.lower()
-        in_arrow = "⌂" if raspiside else "~"
-        out_arrow = "~" if raspiside else "⌂"
+        in_arrow = "~" if raspiside else "⌂"
+        out_arrow = "⌂" if raspiside else "~"
         if action == "check_in":
             print(f"\033[32m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
             lcd.show_message([user_id, "", f"{in_arrow*4}  CHECK-IN  {in_arrow*4}", now.strftime("%Y-%m-%d     %H:%M")])
