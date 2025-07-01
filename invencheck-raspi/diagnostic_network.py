@@ -13,7 +13,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 parsed_url = urlparse(SUPABASE_URL)
 SUPABASE_HOST = parsed_url.hostname
-THRESHOLD = 2.0  # seconds
+THRESHOLD = 0.100  # seconds
 
 # === Helper Functions ===
 def run_cmd(cmd):
@@ -70,8 +70,7 @@ def format_time(t):
     """Format time with highlight if above threshold."""
     if t is None:
         return "  N/A "
-    marker = " !!" if t > THRESHOLD else "    "
-    return f"{t:5.3f}s{marker}"
+    return f"{(t*1000):5.0f}ms   "
 
 # === Unified Report Logic ===
 def report(show_full=False):
@@ -142,4 +141,4 @@ if __name__ == "__main__":
     report(show_full=True)
     while True:
         report(show_full=False)
-        time.sleep(5)
+        time.sleep(1)
