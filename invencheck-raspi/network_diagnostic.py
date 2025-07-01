@@ -5,6 +5,7 @@ import time
 import os
 from datetime import datetime
 from urllib.parse import urlparse
+from ping3 import ping
 from dotenv import load_dotenv
 
 # === Load Config ===
@@ -28,7 +29,7 @@ def check_wifi_status():
     ip = run_cmd("hostname -I")
     return ssid or "NO SSID", ip.split()[0] if ip else "NO IP"
 
-def timed_ping(host):
+def timed_ping_overhead(host):
     if not host:
         return False, None
     start = time.time()
@@ -39,6 +40,15 @@ def timed_ping(host):
     except subprocess.CalledProcessError:
         elapsed = time.time() - start
         return False, round(elapsed, 3)
+    
+def timed_ping(host):
+    try:
+        rtt = ping(host, timeout=2)  # Returns seconds or None
+        if rtt is None:
+            return False, None
+        return True, round(rtt, 3)
+    except Exception:
+        return False, None
 
 def timed_dns_resolve(hostname="google.com"):
     start = time.time()
