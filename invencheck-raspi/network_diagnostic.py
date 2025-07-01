@@ -2,8 +2,18 @@
 import subprocess
 import socket
 import time
+import os
 from datetime import datetime
+from urllib.parse import urlparse
+from dotenv import load_dotenv
 
+# === Load Config ===
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+parsed_url = urlparse(SUPABASE_URL)
+SUPABASE_HOST = parsed_url.hostname
+
+# === Helper Functions ===
 def run_cmd(cmd):
     try:
         return subprocess.check_output(cmd, shell=True, timeout=5).decode().strip()
@@ -17,19 +27,27 @@ def check_wifi_status():
     ip = run_cmd("hostname -I")
     return ssid or "NO SSID", ip.split()[0] if ip else "NO IP"
 
-def ping_host(host):
+def timed_ping(host):
+    if not host:
+        return False, None
+    start = time.time()
     try:
         subprocess.check_call(["ping", "-c", "2", "-W", "2", host], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
+        elapsed = time.time() - start
+        return True, round(elapsed, 3)
     except subprocess.CalledProcessError:
-        return False
+        elapsed = time.time() - start
+        return False, round(elapsed, 3)
 
-def resolve_dns(hostname="google.com"):
+def timed_dns_resolve(hostname="google.com"):
+    start = time.time()
     try:
         socket.gethostbyname(hostname)
-        return True
+        elapsed = time.time() - start
+        return True, round(elapsed, 3)
     except socket.gaierror:
-        return False
+        elapsed = time.time() - start
+        return False, round(elapsed, 3)
 
 def get_default_gateway():
     out = run_cmd("ip route | grep default")
@@ -37,6 +55,7 @@ def get_default_gateway():
         return out.split()[2]
     return None
 
+# === Report Functions ===
 def full_report():
     print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("🔍 Full Network Diagnostic\n")
@@ -48,17 +67,20 @@ def full_report():
     gateway = get_default_gateway()
     print(f"🚪 Gateway: {gateway or 'Not found'}")
 
-    gw_ok = ping_host(gateway) if gateway else False
-    print(f"📡 Ping Gateway: {'OK' if gw_ok else 'FAILED'}")
+    gw_ok, gw_time = timed_ping(gateway) if gateway else (False, None)
+    print(f"📡 Ping Gateway: {'OK' if gw_ok else 'FAILED'} ({gw_time}s)" if gw_time else "📡 Ping Gateway: FAILED")
 
-    dns_ok = resolve_dns()
-    print(f"🧭 DNS Resolve: {'OK' if dns_ok else 'FAILED'}")
+    dns_ok, dns_time = timed_dns_resolve()
+    print(f"🧭 DNS Resolve: {'OK' if dns_ok else 'FAILED'} ({dns_time}s)")
 
-    ext_ok = ping_host("8.8.8.8")
-    print(f"🌍 Ping 8.8.8.8: {'OK' if ext_ok else 'FAILED'}")
+    ext_ok, ext_time = timed_ping("8.8.8.8")
+    print(f"🌍 Ping 8.8.8.8: {'OK' if ext_ok else 'FAILED'} ({ext_time}s)")
 
-    web_ok = ping_host("google.com")
-    print(f"🕸️ Ping google.com: {'OK' if web_ok else 'FAILED'}")
+    web_ok, web_time = timed_ping("google.com")
+    print(f"🕸️ Ping google.com: {'OK' if web_ok else 'FAILED'} ({web_time}s)")
+
+    supabase_ok, supa_time = timed_ping(SUPABASE_HOST)
+    print(f"🛡️ Ping Supabase ({SUPABASE_HOST}): {'OK' if supabase_ok else 'FAILED'} ({supa_time}s)")
 
     print("\n📋 Diagnosis:")
     if ssid == "NO SSID":
@@ -73,18 +95,33 @@ def full_report():
         print("❌ No internet access — check router uplink.")
     elif not web_ok:
         print("❌ Cannot reach websites — possible DNS/filter issue.")
+    elif not supabase_ok:
+        print("❌ Cannot reach Supabase — check Supabase status or your network.")
     else:
-        print("✅ Internet looks OK.")
+        print("✅ Internet and Supabase look OK.")
 
 def minimal_check():
     ssid, ip = check_wifi_status()
     gateway = get_default_gateway()
-    gw_ok = ping_host(gateway) if gateway else False
-    dns_ok = resolve_dns()
-    ext_ok = ping_host("8.8.8.8")
-    web_ok = ping_host("google.com")
+    gw_ok, gw_time = timed_ping(gateway) if gateway else (False, None)
+    dns_ok, dns_time = timed_dns_resolve()
+    ext_ok, ext_time = timed_ping("8.8.8.8")
+    web_ok, web_time = timed_ping("google.com")
+    supabase_ok, supa_time = timed_ping(SUPABASE_HOST)
 
-    if ssid == "NO SSID" or ip == "NO IP" or not gw_ok or not dns_ok or not ext_ok or not web_ok:
+    all_ok = (
+        ssid != "NO SSID"
+        and ip != "NO IP"
+        and gw_ok
+        and dns_ok
+        and ext_ok
+        and web_ok
+        and supabase_ok
+    )
+
+    if all_ok:
+        print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — ✅ All OK | Times: GW {gw_time}s, DNS {dns_time}s, 8.8.8.8 {ext_time}s, Web {web_time}s, Supabase {supa_time}s")
+    else:
         print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — Network Issue Detected")
         if ssid == "NO SSID":
             print("❌ Not connected to any Wi-Fi.")
@@ -98,7 +135,10 @@ def minimal_check():
             print("❌ No internet access — check router uplink.")
         elif not web_ok:
             print("❌ Cannot reach websites — possible DNS/filter issue.")
+        elif not supabase_ok:
+            print(f"❌ Cannot reach Supabase at {SUPABASE_HOST} — check Supabase status or your network.")
 
+# === Main Loop ===
 if __name__ == "__main__":
     full_report()  # Show all info once at start
     while True:

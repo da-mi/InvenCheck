@@ -46,7 +46,7 @@ def get_last_action_today(user_id):
 
 # === Periodic Test ===
 if __name__ == "__main__":
-    TEST_USER_ID = "04239A3DBE2A81"  
+    TEST_USER_ID = "Milani Damiano"  
     INTERVAL = 5  # Seconds between requests
 
     while True:
