@@ -63,58 +63,8 @@ def format_time(t):
     marker = " !!" if t > THRESHOLD else "    "
     return f"{t:5.3f}s{marker}"
 
-# === Full Report ===
-def full_report():
-    print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("🔍 Full Network Diagnostic\n")
-
-    ssid, ip = check_wifi_status()
-    print(f"📶 SSID: {ssid}")
-    print(f"🌐 IP: {ip}")
-
-    gateway = get_default_gateway()
-    print(f"🚪 Gateway: {gateway or 'Not found'}")
-
-    gw_ok, gw_time = timed_ping(gateway) if gateway else (False, None)
-    dns_ok, dns_time = timed_dns_resolve()
-    ext_ok, ext_time = timed_ping("8.8.8.8")
-    web_ok, web_time = timed_ping("google.com")
-    supabase_ok, supa_time = timed_ping(SUPABASE_HOST)
-
-    print(f"\n{'GW':<8}{'DNS':<10}{'8.8.8.8':<10}{'Web':<10}{'Supabase':<12}Status")
-    print(f"{format_time(gw_time):<8}{format_time(dns_time):<10}{format_time(ext_time):<10}{format_time(web_time):<10}{format_time(supa_time):<12}", end="")
-
-    all_ok = (
-        ssid != "NO SSID"
-        and ip != "NO IP"
-        and gw_ok
-        and dns_ok
-        and ext_ok
-        and web_ok
-        and supabase_ok
-    )
-
-    if all_ok:
-        print("✅ All OK")
-    else:
-        print("⚠️ Issue Detected")
-        if ssid == "NO SSID":
-            print("❌ Not connected to any Wi-Fi.")
-        elif ip == "NO IP":
-            print("❌ No IP assigned — check DHCP.")
-        elif not gw_ok:
-            print("❌ Cannot reach gateway — local Wi-Fi issue.")
-        elif not dns_ok:
-            print("❌ DNS failure — try using 8.8.8.8 as nameserver.")
-        elif not ext_ok:
-            print("❌ No internet access — check router uplink.")
-        elif not web_ok:
-            print("❌ Cannot reach websites — possible DNS/filter issue.")
-        elif not supabase_ok:
-            print(f"❌ Cannot reach Supabase at {SUPABASE_HOST} — check Supabase status or your network.")
-
-# === Minimal Check ===
-def minimal_check():
+# === Unified Report Logic ===
+def report(show_full=False):
     ssid, ip = check_wifi_status()
     gateway = get_default_gateway()
     gw_ok, gw_time = timed_ping(gateway) if gateway else (False, None)
@@ -133,14 +83,30 @@ def minimal_check():
         and supabase_ok
     )
 
+    slow_tests = []
+    if gw_time is not None and gw_time > THRESHOLD:
+        slow_tests.append(f"Gateway ({gw_time}s)")
+    if dns_time is not None and dns_time > THRESHOLD:
+        slow_tests.append(f"DNS ({dns_time}s)")
+    if ext_time is not None and ext_time > THRESHOLD:
+        slow_tests.append(f"8.8.8.8 ({ext_time}s)")
+    if web_time is not None and web_time > THRESHOLD:
+        slow_tests.append(f"Web ({web_time}s)")
+    if supa_time is not None and supa_time > THRESHOLD:
+        slow_tests.append(f"Supabase ({supa_time}s)")
+
     print(f"\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'GW':<8}{'DNS':<10}{'8.8.8.8':<10}{'Web':<10}{'Supabase':<12}Status")
     
+    if show_full:
+        print("🔍 Full Network Diagnostic\n")
+        print(f"📶 SSID: {ssid}")
+        print(f"🌐 IP: {ip}")
+        print(f"🚪 Gateway: {gateway or 'Not found'}\n")
+
+    print(f"{'GW':<8}{'DNS':<10}{'8.8.8.8':<10}{'Web':<10}{'Supabase':<12}Status")
     print(f"{format_time(gw_time):<8}{format_time(dns_time):<10}{format_time(ext_time):<10}{format_time(web_time):<10}{format_time(supa_time):<12}", end="")
 
-    if all_ok:
-        print("✅ All OK")
-    else:
+    if not all_ok:
         print("⚠️ Issue Detected")
         if ssid == "NO SSID":
             print("❌ Not connected to any Wi-Fi.")
@@ -156,10 +122,14 @@ def minimal_check():
             print("❌ Cannot reach websites — possible DNS/filter issue.")
         elif not supabase_ok:
             print(f"❌ Cannot reach Supabase at {SUPABASE_HOST} — check Supabase status or your network.")
+    elif slow_tests:
+        print(f"⚠️ Slow response: {', '.join(slow_tests)}")
+    else:
+        print("✅ All OK")
 
 # === Main Loop ===
 if __name__ == "__main__":
-    full_report()
+    report(show_full=True)
     while True:
-        minimal_check()
+        report(show_full=False)
         time.sleep(5)
