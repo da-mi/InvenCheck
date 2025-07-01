@@ -330,7 +330,7 @@ def main_loop():
             action = "check_out" if last_action == "check_in" else "check_in"
 
             register_action(user_id, action, DEVICE_ID)
-            time.sleep(0.1)
+            time.sleep(1)
 
         except Exception as e:
             print(f"[ERROR] {e}")
