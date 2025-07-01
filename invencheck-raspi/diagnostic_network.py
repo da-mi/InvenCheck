@@ -79,7 +79,7 @@ def timed_ping_overhead(host):
 
 def timed_ping(host):
     try:
-        rtt = ping(host, timeout=20)  # Returns seconds or None
+        rtt = ping(host, timeout=2)  # Returns seconds or None
         if rtt is None:
             return False, None
         return True, round(rtt, 3)
