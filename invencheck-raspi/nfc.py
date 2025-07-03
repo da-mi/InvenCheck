@@ -17,7 +17,7 @@ class NFCReader:
         cs_pin = DigitalInOut(board.D8)  # CE0
         self.pn532 = PN532_SPI(spi, cs_pin, debug=False)
         self.pn532.SAM_configuration()
-        print("PN532 ready")
+        print("[INIT] PN532 ready")
 
     def read_uid(self, timeout=1.0):
         while True:

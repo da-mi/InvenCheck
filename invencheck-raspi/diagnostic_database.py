@@ -34,7 +34,7 @@ def get_last_action_today(user_id):
 
     start_time = time.time()
     try:
-        response = requests.get(url, headers=HEADERS, timeout=10)  # 10s max timeout to avoid hanging forever
+        response = requests.get(url, headers=HEADERS, timeout=(1, 2))  # 10s max timeout to avoid hanging forever
         elapsed = time.time() - start_time
         if response.status_code == 200:
             print(f"[OK] Response time: {elapsed:.3f} seconds | Records: {len(response.json())}")

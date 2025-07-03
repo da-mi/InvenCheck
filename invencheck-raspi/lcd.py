@@ -26,6 +26,7 @@ class LCD:
         self.current_lines = ["", "", "", ""]
 
         threading.Thread(target=self._screen_manager_loop, daemon=True).start()
+        print("[INIT] LCD ready")
 
     def clear(self):
         with self.lock:

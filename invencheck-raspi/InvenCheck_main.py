@@ -330,13 +330,13 @@ def main_loop():
             action = "check_out" if last_action == "check_in" else "check_in"
 
             register_action(user_id, action, DEVICE_ID)
-            time.sleep(1)
+            time.sleep(0.5) #wait time for next scan
 
         except Exception as e:
             print(f"[ERROR] {e}")
             lcd.show_message(["ERROR",str(e)[:60]])
             buzzer.error()
-            time.sleep(0.1)
+            time.sleep(0.5)
 
 if __name__ == "__main__":
     main_loop()

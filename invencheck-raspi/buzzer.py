@@ -32,6 +32,7 @@ class Buzzer:
         if not self.pi.connected:
             raise RuntimeError("Cannot connect to pigpio daemon. Make sure 'pigpiod' is running.")
         self.pi.set_mode(self.pin, pigpio.OUTPUT)
+        print("[INIT] Buzzer ready")
 
     def beep(self, frequency=None, duration=0.1):
         if frequency and frequency > 0:
