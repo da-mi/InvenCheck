@@ -11,6 +11,7 @@ from supabase import create_client, Client
 import pandas as pd
 import pytz
 from datetime import datetime
+from dateutil import parser
 
 ##### [PAGE SETTINGS]
 st.set_page_config(
