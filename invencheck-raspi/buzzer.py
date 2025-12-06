@@ -8,6 +8,7 @@ Damiano Milani
 
 import pigpio
 import time
+import random
 
 class Buzzer:
     NOTES = {
@@ -75,6 +76,12 @@ class Buzzer:
         for note in reversed(self.NOTES):
             self.note(note, 0.005)
             time.sleep(0.001)
+
+    def xmas(self):
+        xmas_songs = [self.jingle_bells,self.we_wish_you,self.tu_scendi]
+        song_to_play = random.choice(xmas_songs)
+        self.play_song([('REST', 0.5)])
+        song_to_play()
 
     # Songs
     def matrix1(self):
@@ -220,6 +227,33 @@ class Buzzer:
         
         self.play_song(song) 
 
+    def jingle_bells(self):
+        song = [
+            ('E5', 0.25), ('E5', 0.25), ('E5', 0.5),
+            ('E5', 0.25), ('E5', 0.25), ('E5', 0.5),
+            ('E5', 0.25), ('G5', 0.25), ('C5', 0.25), ('D5', 0.25), ('E5', 1.0),
+        ]
+        self.play_song(song,tempo=0.75)
+
+    def we_wish_you(self):
+        song = [
+            ('D5', 1), ('G5', 1), ('G5', 0.5), ('A5', 0.5), ('G5', 0.5), ('FS5', 0.5),
+            ('E5', 1), ('E5', 1),
+            ('E5', 1), ('A5', 1), ('A5', 0.5), ('B5', 0.5), ('A5', 0.5), ('G5', 0.5),
+            ('FS5', 1), ('D5', 1),
+        ]
+        self.play_song(song,tempo=0.3)
+
+    def tu_scendi(self):
+        song = [
+            ('G5', 0.25), ('G5', 0.5), ('A5', 0.25),
+            ('G5', 0.5), ('F5', 0.25), ('F5', 0.25),
+            ('E5', 1), 
+            ('D5', 0.25),('E5', 0.25),('F5', 0.25),('G5', 0.25),
+            ('G5', 0.25),('F5', 0.25),('E5', 0.25),
+            ('D5', 1),
+        ]
+        self.play_song(song,tempo=0.75)
 
     def close(self):
         self.pi.hardware_PWM(self.pin, 0, 0)
@@ -228,6 +262,6 @@ class Buzzer:
 
 if __name__ == "__main__":
     buzzer = Buzzer(pin=13)  # GPIO18 supports hardware PWM0
-    buzzer.harry_potter()
+    buzzer.xmas()
     buzzer.close()
 

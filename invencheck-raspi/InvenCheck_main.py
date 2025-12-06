@@ -58,6 +58,7 @@ employee_cache = {}
 
 last_uid_scanned = None
 repeat_count = 0
+xmas_count = 0
 
 # === NFC Logic ===
 def load_all_employees():
@@ -186,6 +187,7 @@ def register_action(user_id, action, device_id):
             print(f"\033[32m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
             lcd.show_message([user_id, "", f"{in_arrow*4}  CHECK-IN  {in_arrow*4}", now.strftime("%Y-%m-%d     %H:%M")])
             buzzer.checkin()
+            check_xmas()
         else:
             print(f"\033[31m[OK] {action.replace('_', ' ').upper()} recorded.\033[0m")
             lcd.show_message([user_id, "", f"{out_arrow*4}  CHECK-OUT  {out_arrow*3}", now.strftime("%Y-%m-%d     %H:%M")])
@@ -205,7 +207,7 @@ def check_uovo(tag_uid):
             if tag_uid == globals().get(_l) else (tag_uid, 1)
         )
 
-        if globals()[_c] == 7:
+        if globals()[_c] == 9:
             print("[EGG] Sequence activated.")
             msg1 = "".join([chr(c) for c in [87, 97, 107, 101, 32, 117, 112, 44, 32, 78, 101, 111, 46, 46, 46]])
             msg2 = "".join([chr(c) for c in [84, 104, 101, 32, 77, 97, 116, 114, 105, 120, 32, 104, 97, 115, 32, 121, 111, 117, 46, 46]])
@@ -223,6 +225,27 @@ def check_uovo(tag_uid):
     except Exception as e:
         print(f"[ERROR] {e}")
     return False
+
+
+# === Xmas Handler ===
+def check_xmas():
+    global xmas_count
+    if not is_xmas_time():
+        xmas_count = 0
+        return False
+    xmas_count += 1
+    if xmas_count % 7 == 0:
+        print("[XMAS] Xmas jingle activated.")
+        buzzer.xmas()
+        return True
+    return False
+
+# === Xmas time ===
+def is_xmas_time(now=None):
+    rome = pytz.timezone("Europe/Rome")
+    now = now or datetime.now(rome)
+    m, d = now.month, now.day
+    return (m == 12 and d >= 8) or (m == 1 and d <= 8) # between Dec 8 and Jan 8 (inclusive)
 
 
 # === Heartbeat ===
@@ -330,7 +353,7 @@ def main_loop():
             action = "check_out" if last_action == "check_in" else "check_in"
 
             register_action(user_id, action, DEVICE_ID)
-            time.sleep(0.5) #wait time for next scan
+            time.sleep(0.25) #wait time for next scan
 
         except Exception as e:
             print(f"[ERROR] {e}")
