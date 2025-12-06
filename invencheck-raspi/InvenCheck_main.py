@@ -234,7 +234,7 @@ def check_xmas():
         xmas_count = 0
         return False
     xmas_count += 1
-    if xmas_count % 7 == 0:
+    if xmas_count % 3 == 0:
         print("[XMAS] Xmas jingle activated.")
         buzzer.xmas()
         return True
@@ -245,7 +245,7 @@ def is_xmas_time(now=None):
     rome = pytz.timezone("Europe/Rome")
     now = now or datetime.now(rome)
     m, d = now.month, now.day
-    return (m == 12 and d >= 8) or (m == 1 and d <= 8) # between Dec 8 and Jan 8 (inclusive)
+    return (m == 12 and d >= 6) or (m == 1 and d <= 8) # between Dec 8 and Jan 8 (inclusive)
 
 
 # === Heartbeat ===
