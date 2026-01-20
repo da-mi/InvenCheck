@@ -48,10 +48,10 @@ supabase: Client = create_client(url, key)
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
-    # Fetch up to 5000 records in chunks of 800
+    # Fetch up to 4000 records in chunks of 800
     all_data = []
     page_size = 800
-    max_records = 5000
+    max_records = 4000
     offset = 0
     while len(all_data) < max_records:
         response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(offset, offset + page_size - 1).execute()
