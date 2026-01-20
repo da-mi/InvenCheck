@@ -165,7 +165,7 @@ else:
         "status": "Status",
         "ip": "IP",
         "last_seen": "Last seen"
-    }), column_config={'Last seen': None, 'IP': None}, hide_index=True, use_container_width=True)
+    }), column_config={'Last seen': None, 'IP': None}, hide_index=True, width='stretch')
 
 
 
@@ -205,7 +205,7 @@ with col3:
 tabs = st.tabs(["Currently in the office", "Attendance Record", "All entries"])
 
 with tabs[0]:
-    st.dataframe(present_employees_display, hide_index=True, use_container_width=True)
+    st.dataframe(present_employees_display, hide_index=True, width='stretch')
 
 with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
@@ -225,10 +225,10 @@ with tabs[1]:
     attendance_summary["First Check-in"] = attendance_summary["First Check-in"].dt.strftime("%Y-%m-%d %H:%M")
     attendance_summary["Last Check-out"] = attendance_summary["Last Check-out"].dt.strftime("%Y-%m-%d %H:%M")
 
-    st.dataframe(attendance_summary, hide_index=True, use_container_width=True)
+    st.dataframe(attendance_summary, hide_index=True, width='stretch')
 
 with tabs[2]:
     display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
-    st.dataframe(display_df, use_container_width=True, height=500)
+    st.dataframe(display_df, width='stretch', height=500)
