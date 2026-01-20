@@ -48,11 +48,12 @@ supabase: Client = create_client(url, key)
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
+    # Fetch up to 5000 records in chunks of 800
     all_data = []
     page_size = 800
+    max_records = 5000
     offset = 0
-    
-    while True:
+    while len(all_data) < max_records:
         response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(offset, offset + page_size - 1).execute()
         if not response.data:
             break
@@ -240,9 +241,7 @@ with tabs[1]:
     st.dataframe(attendance_summary, hide_index=True, width='stretch')
 
 with tabs[2]:
-    st.write(f"**Total records loaded from database:** {len(df)}")
     display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
-    st.write(f"**Records in display table:** {len(display_df)}")
     st.dataframe(display_df, width='stretch', height=500)
