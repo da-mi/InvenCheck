@@ -231,4 +231,4 @@ with tabs[2]:
     display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, use_container_width=True, height=500)
