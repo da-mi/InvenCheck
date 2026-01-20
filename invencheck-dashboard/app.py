@@ -48,8 +48,20 @@ supabase: Client = create_client(url, key)
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
-    response = supabase.table("attendance").select("*").order("timestamp", desc=True).limit(5000).execute()
-    df = pd.DataFrame(response.data)
+    all_data = []
+    page_size = 800
+    offset = 0
+    
+    while True:
+        response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(offset, offset + page_size - 1).execute()
+        if not response.data:
+            break
+        all_data.extend(response.data)
+        if len(response.data) < page_size:
+            break
+        offset += page_size
+    
+    df = pd.DataFrame(all_data)
     # df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome") 
     #bug found on 2025/12/04, when the timestamp was recoreded exactly at .000000 second and microseconds were cut
     df['timestamp'] = df['timestamp'].astype(str).map(parser.parse).map(pd.Timestamp).dt.tz_convert("Europe/Rome")
