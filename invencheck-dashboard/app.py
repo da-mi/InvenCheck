@@ -228,7 +228,9 @@ with tabs[1]:
     st.dataframe(attendance_summary, hide_index=True, width='stretch')
 
 with tabs[2]:
+    st.write(f"**Total records loaded from database:** {len(df)}")
     display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
+    st.write(f"**Records in display table:** {len(display_df)}")
     st.dataframe(display_df, width='stretch', height=500)
