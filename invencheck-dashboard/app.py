@@ -48,7 +48,7 @@ supabase: Client = create_client(url, key)
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
 def load_attendance():
-    response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(0, 4999).execute()
+    response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(0, 499).execute()
     df = pd.DataFrame(response.data)
     # df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome") 
     #bug found on 2025/12/04, when the timestamp was recoreded exactly at .000000 second and microseconds were cut
