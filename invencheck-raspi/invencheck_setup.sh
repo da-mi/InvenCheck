@@ -80,7 +80,7 @@ build_wifi_driver() {
     DRIVER_BUILD_DIR="/tmp/aic8800dc-build"
 
     echo "[Driver] Installing build dependencies..."
-    apt install -y git build-essential raspberrypi-kernel-headers
+    apt install -y git dkms build-essential linux-headers-$(uname -r) linux-headers-generic
     echo
 
     echo "[Driver] Cloning driver source..."
