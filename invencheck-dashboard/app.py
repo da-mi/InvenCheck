@@ -17,7 +17,7 @@ from dateutil import parser
 st.set_page_config(
     page_title="TDK InvenCheck - Attendance Tracker",
     page_icon="https://invensense.tdk.com/favicon.ico",
-    layout="centered",
+    layout="wide",
     menu_items={'About': "### TDK InvenCheck - DM 2025"}
 )
 
@@ -32,7 +32,7 @@ st.markdown("""
 ##### [TOP BAR WITH LOGO]
 st.markdown("""
     <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.35rem;">
-        <img src="https://www.tdk.com/themes/custom/tdkcom/src/favicons/TDK_Favicon_192x192_BT.png" height="30" style="margin-right:10px"/>
+        <img src="https://invensense.tdk.com/web-app-manifest-512x512.png" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
     <div style="margin-bottom:20px"></div>
@@ -232,7 +232,7 @@ col2.metric("🔬 In the Laboratory", len(present_lab), border=True)
 col3.metric("➜ Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
 with col4:
-    if st.button("Refresh", icon=":material/refresh:", type="primary"):
+    if st.button("", icon=":material/refresh:", type="primary"):
         st.cache_data.clear()
         st.rerun()
 
