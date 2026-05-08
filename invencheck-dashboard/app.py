@@ -232,7 +232,7 @@ col2.metric("🔬 In the Laboratory", len(present_lab), border=True)
 col3.metric("➜ Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
 with col4:
-    if st.button("", icon=":material/refresh:", type="primary"):
+    if st.button("Refresh", icon=":material/refresh:", type="primary"):
         st.cache_data.clear()
         st.rerun()
 
@@ -264,35 +264,47 @@ with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
     df_filtered = df[df["timestamp"].dt.date == date_selected].copy()
 
-    for place, icon in [("Office", "🏢"), ("Laboratory", "🔬")]:
-        st.markdown(f"**{icon} {place}**")
+    def build_attendance_summary(df_filtered, place):
         df_place = df_filtered[df_filtered["place"] == place]
         df_checkins = df_place[df_place["action"] == "check_in"].sort_values("timestamp")
         df_checkouts = df_place[df_place["action"] == "check_out"].sort_values("timestamp")
-
         first_checkins = (df_checkins.groupby("user_id").first().reset_index()
                           if not df_checkins.empty
                           else pd.DataFrame(columns=["user_id", "timestamp"]))
         last_checkouts = (df_checkouts.groupby("user_id").last().reset_index()
                           if not df_checkouts.empty
                           else pd.DataFrame(columns=["user_id", "timestamp"]))
-
         if first_checkins.empty and last_checkouts.empty:
-            st.info(f"No data for {place} on this date.")
+            return None
+        summary = pd.merge(
+            first_checkins[["user_id", "timestamp"]],
+            last_checkouts[["user_id", "timestamp"]],
+            on="user_id", how="outer", suffixes=("_in", "_out")
+        )
+        summary.columns = ["Employee", "First Check-in", "Last Check-out"]
+        summary["First Check-in"] = summary["First Check-in"].apply(
+            lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
+        )
+        summary["Last Check-out"] = summary["Last Check-out"].apply(
+            lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
+        )
+        return summary
+
+    tc1, tc2 = st.columns(2)
+    with tc1:
+        st.markdown("**🏢 Office**")
+        summary = build_attendance_summary(df_filtered, "Office")
+        if summary is not None:
+            st.dataframe(summary, hide_index=True, use_container_width=True)
         else:
-            attendance_summary = pd.merge(
-                first_checkins[["user_id", "timestamp"]],
-                last_checkouts[["user_id", "timestamp"]],
-                on="user_id", how="outer", suffixes=("_in", "_out")
-            )
-            attendance_summary.columns = ["Employee", "First Check-in", "Last Check-out"]
-            attendance_summary["First Check-in"] = attendance_summary["First Check-in"].apply(
-                lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
-            )
-            attendance_summary["Last Check-out"] = attendance_summary["Last Check-out"].apply(
-                lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
-            )
-            st.dataframe(attendance_summary, hide_index=True, use_container_width=True)
+            st.info("No data for Office on this date.")
+    with tc2:
+        st.markdown("**🔬 Laboratory**")
+        summary = build_attendance_summary(df_filtered, "Laboratory")
+        if summary is not None:
+            st.dataframe(summary, hide_index=True, use_container_width=True)
+        else:
+            st.info("No data for Laboratory on this date.")
 
 with tabs[2]:
     display_df = df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
