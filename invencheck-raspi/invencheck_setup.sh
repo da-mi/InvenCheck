@@ -89,11 +89,11 @@ build_wifi_driver() {
     echo
 
     echo "[Driver] Compiling..."
-    make -C "$DRIVER_BUILD_DIR"
+    make -C "$DRIVER_BUILD_DIR/drivers/aic8800"
     echo
 
     echo "[Driver] Installing module..."
-    make -C "$DRIVER_BUILD_DIR" install
+    make -C "$DRIVER_BUILD_DIR/drivers/aic8800" install
     depmod -a
     echo
 
