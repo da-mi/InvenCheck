@@ -106,10 +106,97 @@ def load_users():
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
 
+##### [LOGIN]
+if "role" not in st.session_state:
+    st.session_state.role = None
 
+if st.session_state.role is None:
+    _, center, _ = st.columns([2, 1, 2])
+    with center:
+        st.markdown("#### Sign in")
+        password = st.text_input("Password", type="password")
+        if st.button("Login", type="primary", icon=":material/login:"):
+            if password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.role = "admin"
+                st.rerun()
+            elif password == st.secrets["USER_PASSWORD"]:
+                st.session_state.role = "user"
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+    st.stop()
 
-##### [SIDEBAR]
-# --- Manual Check-in/Check-out ---
+##### [LOGOUT BUTTON - sidebar for admin, main area for user]
+def logout():
+    st.session_state.role = None
+    st.rerun()
+
+##### [SHARED DATA]
+device_df = load_devices()
+df = load_attendance()
+df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
+
+today = datetime.now(pytz.timezone("Europe/Rome")).date()
+df_today = df[df["timestamp"].dt.date == today]
+
+def get_present_in_place(df_day, place):
+    df_place = df_day[df_day["place"] == place]
+    if df_place.empty:
+        return pd.DataFrame(columns=["user_id", "entrance", "timestamp", "action"])
+    present = (
+        df_place.sort_values("timestamp")
+        .groupby("user_id")
+        .last()
+        .reset_index()
+    )
+    return present[present["action"] == "check_in"]
+
+present_office = get_present_in_place(df_today, "Office")
+present_lab = get_present_in_place(df_today, "Laboratory")
+
+##### [SHARED COMPONENTS]
+def render_counters_and_refresh():
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 1], vertical_alignment="center")
+    col1.metric("🏢 Currently in the Office", len(present_office), border=True)
+    col2.metric("🔬 Currently in the Laboratory", len(present_lab), border=True)
+    col3.metric("➜ Total checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
+    with col4:
+        if st.button("Refresh", icon=":material/refresh:", type="primary"):
+            st.cache_data.clear()
+            st.rerun()
+
+def render_present_tables():
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**🏢 Office**")
+        if not present_office.empty:
+            office_display = present_office[["user_id", "entrance", "timestamp"]].copy()
+            office_display.columns = ["Employee", "Entrance", "Last Check-in"]
+            office_display["Last Check-in"] = office_display["Last Check-in"].dt.strftime("%H:%M")
+            st.dataframe(office_display, hide_index=True, width='stretch')
+        else:
+            st.info("Nobody in the Office")
+    with c2:
+        st.markdown("**🔬 Laboratory**")
+        if not present_lab.empty:
+            lab_display = present_lab[["user_id", "entrance", "timestamp"]].copy()
+            lab_display.columns = ["Employee", "Entrance", "Last Check-in"]
+            lab_display["Last Check-in"] = lab_display["Last Check-in"].dt.strftime("%H:%M")
+            st.dataframe(lab_display, hide_index=True, width='stretch')
+        else:
+            st.info("Nobody in the Laboratory")
+
+##### [USER VIEW]
+if st.session_state.role == "user":
+    render_counters_and_refresh()
+    st.divider()
+    render_present_tables()
+    st.sidebar.button("Logout", icon=":material/logout:", on_click=logout)
+    st.stop()
+
+##### [ADMIN VIEW]
+# --- Sidebar ---
 st.sidebar.header(":material/settings: Admin panel")
 st.sidebar.divider()
 st.sidebar.subheader(":material/table_edit: Manual Entry")
@@ -188,7 +275,6 @@ if delete:
 # --- Device status panel ---
 st.sidebar.divider()
 st.sidebar.subheader(":material/cloud_upload: Device Connection")
-device_df = load_devices()
 if device_df.empty:
     st.sidebar.warning("No device heartbeat data available.")
 else:
@@ -200,65 +286,17 @@ else:
         "last_seen": "Last seen"
     }), column_config={'Last seen': None, 'IP': None}, hide_index=True, width='stretch')
 
+# --- Logout ---
+st.sidebar.divider()
+st.sidebar.button("Logout", icon=":material/logout:", on_click=logout)
 
+# --- Main view ---
+render_counters_and_refresh()
 
-##### [MAIN VIEW]
-df = load_attendance()
-df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
-df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-
-today = datetime.now(pytz.timezone("Europe/Rome")).date()
-df_today = df[df["timestamp"].dt.date == today]
-
-def get_present_in_place(df_day, place):
-    df_place = df_day[df_day["place"] == place]
-    if df_place.empty:
-        return pd.DataFrame(columns=["user_id", "entrance", "timestamp", "action"])
-    present = (
-        df_place.sort_values("timestamp")
-        .groupby("user_id")
-        .last()
-        .reset_index()
-    )
-    return present[present["action"] == "check_in"]
-
-present_office = get_present_in_place(df_today, "Office")
-present_lab = get_present_in_place(df_today, "Laboratory")
-
-# --- Counters ---
-col1, col2, col3, col4 = st.columns([2, 2, 2, 1], vertical_alignment="center")
-col1.metric("🏢 Currently in the Office", len(present_office), border=True)
-col2.metric("🔬 Currently in the Laboratory", len(present_lab), border=True)
-col3.metric("➜ Total checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
-
-with col4:
-    if st.button("Refresh", icon=":material/refresh:", type="primary"):
-        st.cache_data.clear()
-        st.rerun()
-
-# --- Tabs UI ---
 tabs = st.tabs(["Currently present", "Attendance Record", "All entries"])
 
 with tabs[0]:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**🏢 Office**")
-        if not present_office.empty:
-            office_display = present_office[["user_id", "entrance", "timestamp"]].copy()
-            office_display.columns = ["Employee", "Entrance", "Last Check-in"]
-            office_display["Last Check-in"] = office_display["Last Check-in"].dt.strftime("%H:%M")
-            st.dataframe(office_display, hide_index=True, width='stretch')
-        else:
-            st.info("Nobody in the Office")
-    with c2:
-        st.markdown("**🔬 Laboratory**")
-        if not present_lab.empty:
-            lab_display = present_lab[["user_id", "entrance", "timestamp"]].copy()
-            lab_display.columns = ["Employee", "Entrance", "Last Check-in"]
-            lab_display["Last Check-in"] = lab_display["Last Check-in"].dt.strftime("%H:%M")
-            st.dataframe(lab_display, hide_index=True, width='stretch')
-        else:
-            st.info("Nobody in the Laboratory")
+    render_present_tables()
 
 with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
