@@ -227,9 +227,9 @@ present_lab = get_present_in_place(df_today, "Laboratory")
 
 # --- Counters ---
 col1, col2, col3, col4 = st.columns([2, 2, 2, 1], vertical_alignment="center")
-col1.metric("🏢 In the Office", len(present_office), border=True)
-col2.metric("🔬 In the Laboratory", len(present_lab), border=True)
-col3.metric("➜ Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
+col1.metric("🏢 Currently in the Office", len(present_office), border=True)
+col2.metric("🔬 Currently in the Laboratory", len(present_lab), border=True)
+col3.metric("➜ Total checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
 with col4:
     if st.button("Refresh", icon=":material/refresh:", type="primary"):
