@@ -129,7 +129,6 @@ if st.session_state.role is None:
 ##### [LOGOUT BUTTON - sidebar for admin, main area for user]
 def logout():
     st.session_state.role = None
-    st.rerun()
 
 ##### [SHARED DATA]
 device_df = load_devices()
