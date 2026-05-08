@@ -67,11 +67,10 @@ supabase: Client = create_client(url, key)
 
 ##### [DATA LOADING FUNCTIONS]
 @st.cache_data(ttl=300)
-def load_attendance():
-    # Fetch up to 4000 records in chunks of 800
+def load_attendance(max_records=4000):
+    # Fetch up to max_records records in chunks of 800
     all_data = []
     page_size = 800
-    max_records = 4000
     offset = 0
     while len(all_data) < max_records:
         response = supabase.table("attendance").select("*").order("timestamp", desc=True).range(offset, offset + page_size - 1).execute()
@@ -132,7 +131,7 @@ def logout():
 
 ##### [SHARED DATA]
 device_df = load_devices()
-df = load_attendance()
+df = load_attendance(max_records=800 if st.session_state.role == "user" else 4000)
 df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
 df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
 
