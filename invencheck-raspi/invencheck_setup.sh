@@ -74,87 +74,35 @@ EOF
     echo
 }
 
-enable_usb_gadget() {
-    echo "[USB] Enabling USB Gadget Mode (OTG)..."
-    BOOT_CONFIG="/boot/firmware/config.txt"
-    CMDLINE_FILE="/boot/firmware/cmdline.txt"
-    MODULES_FILE="/etc/modules"
 
-    echo "-> Ensuring 'dtoverlay=dwc2' in $BOOT_CONFIG"
-    if ! grep -q "dtoverlay=dwc2,dr_mode=peripheral" "$BOOT_CONFIG"; then
-        echo -e "dtoverlay=dwc2,dr_mode=peripheral" >> "$BOOT_CONFIG"
-    fi
+build_wifi_driver() {
+    DRIVER_REPO="https://github.com/da-mi/aic8800dc-linux-patched"
+    DRIVER_BUILD_DIR="/tmp/aic8800dc-build"
 
-    echo "-> Adding 'modules-load=dwc2,g_ether' to $CMDLINE_FILE"
-    if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE_FILE"; then
-        sed -i 's|\(rootwait\)|\1 modules-load=dwc2,g_ether|' "$CMDLINE_FILE"
-    fi
+    echo "[Driver] Installing build dependencies..."
+    apt install -y git build-essential raspberrypi-kernel-headers
     echo
 
-    echo "[USB] Configuring USB gadget for NetworkManager..."
-    setup_usb_gadget_networkmanager
-
-    echo "[OK] USB gadget mode setup complete. A reboot is required."
+    echo "[Driver] Cloning driver source..."
+    rm -rf "$DRIVER_BUILD_DIR"
+    git clone "$DRIVER_REPO" "$DRIVER_BUILD_DIR"
     echo
-}
 
-setup_usb_gadget_networkmanager() {
-    echo "-> Patching unmanaged rule (if needed)..."
-    if [ -f /usr/lib/udev/rules.d/85-nm-unmanaged.rules ]; then
-        cp /usr/lib/udev/rules.d/85-nm-unmanaged.rules /etc/udev/rules.d/85-nm-unmanaged.rules
-        sed -i 's/^[^#]*gadget/# &/' /etc/udev/rules.d/85-nm-unmanaged.rules
-    fi
+    echo "[Driver] Compiling..."
+    make -C "$DRIVER_BUILD_DIR"
+    echo
 
-    echo "-> Creating usb0-dhcp config..."
-    CONNFILE1=/etc/NetworkManager/system-connections/usb0-dhcp.nmconnection
-    UUID1=$(uuid -v4)
-    cat <<EOF > "$CONNFILE1"
-[connection]
-id=usb0-dhcp
-uuid=$UUID1
-type=ethernet
-interface-name=usb0
-autoconnect-priority=100
-autoconnect-retries=2
+    echo "[Driver] Installing module..."
+    make -C "$DRIVER_BUILD_DIR" install
+    depmod -a
+    echo
 
-[ethernet]
+    echo "[Driver] Configuring module to load at boot..."
+    echo "aic8800dc" > /etc/modules-load.d/aic8800dc.conf
+    echo
 
-[ipv4]
-dhcp-timeout=3
-method=auto
-
-[ipv6]
-addr-gen-mode=default
-method=auto
-
-[proxy]
-EOF
-
-    echo "-> Creating usb0-ll fallback config..."
-    CONNFILE2=/etc/NetworkManager/system-connections/usb0-ll.nmconnection
-    UUID2=$(uuid -v4)
-    cat <<EOF > "$CONNFILE2"
-[connection]
-id=usb0-ll
-uuid=$UUID2
-type=ethernet
-interface-name=usb0
-autoconnect-priority=50
-
-[ethernet]
-
-[ipv4]
-method=link-local
-
-[ipv6]
-addr-gen-mode=default
-method=auto
-
-[proxy]
-EOF
-    chmod 600 "$CONNFILE1" "$CONNFILE2"
-
-    echo "[OK] NetworkManager usb0 configuration complete."
+    rm -rf "$DRIVER_BUILD_DIR"
+    echo "[OK] WiFi driver build and install complete."
     echo
 }
 
@@ -286,13 +234,12 @@ print_banner
 case "$1" in
     install)
         setup_base
-        enable_usb_gadget
+        build_wifi_driver
         clone_repo
         setup_venv
         setup_service
 
         echo "=== INSTALLATION COMPLETE ==="
-        echo "-> Reboot is required to activate USB gadget mode."
         echo "-> To monitor logs: journalctl -u $SERVICE_NAME -f"
         ;;
     update)
