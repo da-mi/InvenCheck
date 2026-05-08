@@ -88,17 +88,9 @@ build_wifi_driver() {
     git clone "$DRIVER_REPO" "$DRIVER_BUILD_DIR"
     echo
 
-    echo "[Driver] Compiling..."
-    make -C "$DRIVER_BUILD_DIR/drivers/aic8800"
-    echo
-
-    echo "[Driver] Installing module..."
-    make -C "$DRIVER_BUILD_DIR/drivers/aic8800" install
-    depmod -a
-    echo
-
-    echo "[Driver] Configuring module to load at boot..."
-    echo "aic8800dc" > /etc/modules-load.d/aic8800dc.conf
+    echo "[Driver] Running install script..."
+    chmod +x "$DRIVER_BUILD_DIR/install.sh"
+    bash "$DRIVER_BUILD_DIR/install.sh"
     echo
 
     rm -rf "$DRIVER_BUILD_DIR"
