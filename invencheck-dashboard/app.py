@@ -16,7 +16,7 @@ from dateutil import parser
 ##### [PAGE SETTINGS]
 st.set_page_config(
     page_title="TDK InvenCheck - Attendance Tracker",
-    page_icon="https://invensense.tdk.com/wp-content/themes/invensense//images/favicon/favicon-32x32.png",
+    page_icon="https://invensense.tdk.com/favicon.ico",
     layout="centered",
     menu_items={'About': "### TDK InvenCheck - DM 2025"}
 )
@@ -32,13 +32,33 @@ st.markdown("""
 ##### [TOP BAR WITH LOGO]
 st.markdown("""
     <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.35rem;">
-        <img src="https://invensense.tdk.com/wp-content/themes/invensense/images/tdk-white-logo.svg" height="30" style="margin-right:10px"/>
+        <img src="https://www.tdk.com/themes/custom/tdkcom/src/favicons/TDK_Favicon_192x192_BT.png" height="30" style="margin-right:10px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
     <div style="margin-bottom:20px"></div>
     """, unsafe_allow_html=True)
 
+##### [LOCATION CONFIGURATION]
+OFFICE_LOCATIONS = {"Ingresso A8", "Ingresso A10"}
+LABORATORY_LOCATIONS = {"Laboratorio", "Backup"}
 
+def resolve_place(device_id, device_df):
+    """Returns (entrance_label, place) for a given device_id."""
+    if device_id == "Manual-Office":
+        return "Manual", "Office"
+    if device_id == "Manual-Laboratory":
+        return "Manual", "Laboratory"
+    if device_id == "Manual":
+        return "Manual", "Office"
+    matches = device_df[device_df["device_id"] == device_id]
+    if matches.empty:
+        return "Unknown", "Unknown"
+    location = matches["location"].values[0]
+    if location in OFFICE_LOCATIONS:
+        return location, "Office"
+    if location in LABORATORY_LOCATIONS:
+        return location, "Laboratory"
+    return location, "Unknown"
 
 ##### [SUPABASE SETUP]
 url = st.secrets["SUPABASE_URL"]
@@ -61,9 +81,8 @@ def load_attendance():
         if len(response.data) < page_size:
             break
         offset += page_size
-    
+
     df = pd.DataFrame(all_data)
-    # df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert("Europe/Rome") 
     #bug found on 2025/12/04, when the timestamp was recoreded exactly at .000000 second and microseconds were cut
     df['timestamp'] = df['timestamp'].astype(str).map(parser.parse).map(pd.Timestamp).dt.tz_convert("Europe/Rome")
     return df.sort_values("timestamp", ascending=False)
@@ -99,6 +118,7 @@ filtered_users = users_df[users_df["user_id"].str.lower() != "unknown"]
 user_names = filtered_users["user_id"].tolist()
 selected_user = st.sidebar.selectbox("Select Employee", user_names)
 action = st.sidebar.radio("Action", ["Check-in", "Check-out"], horizontal=True)
+manual_location = st.sidebar.radio("Location", ["Office", "Laboratory"], horizontal=True)
 submit = st.sidebar.button("Submit", icon=":material/send:", type="primary")
 
 if submit:
@@ -108,9 +128,9 @@ if submit:
         "user_id": selected_id,
         "action": action.lower().replace('-', '_'),
         "timestamp": now.isoformat(),
-        "device_id": "Manual"
+        "device_id": f"Manual-{manual_location}"
     }).execute()
-    st.sidebar.success(f"{action.replace('_', ' ').title()} recorded for {selected_user}")
+    st.sidebar.success(f"{action.replace('_', ' ').title()} recorded for {selected_user} ({manual_location})")
     st.cache_data.clear()
     st.rerun()
 
@@ -183,65 +203,99 @@ else:
 
 
 ##### [MAIN VIEW]
-# --- Present employees (always based on today) ---
 df = load_attendance()
-df["entrance"] = df["device_id"].apply(lambda x: "Manual" if x == "Manual" else 
-                                       device_df[device_df["device_id"] == x]["location"].values[0] 
-                                       if not device_df[device_df["device_id"] == x].empty else "Unknown")
+df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
 
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
 df_today = df[df["timestamp"].dt.date == today]
 
-present_employees = (
-    df_today.sort_values("timestamp")
-    .groupby("user_id")
-    .last()
-    .reset_index()
-)
-present_employees = present_employees[present_employees["action"] == "check_in"]
-present_employees_display = present_employees[["user_id", "entrance", "timestamp"]].copy()
-present_employees_display.columns = ["Employee", "Entrance", "Last Check-in"]
-present_employees_display["Last Check-in"] = present_employees_display["Last Check-in"].dt.strftime("%Y-%m-%d %H:%M")
+def get_present_in_place(df_day, place):
+    df_place = df_day[df_day["place"] == place]
+    if df_place.empty:
+        return pd.DataFrame(columns=["user_id", "entrance", "timestamp", "action"])
+    present = (
+        df_place.sort_values("timestamp")
+        .groupby("user_id")
+        .last()
+        .reset_index()
+    )
+    return present[present["action"] == "check_in"]
+
+present_office = get_present_in_place(df_today, "Office")
+present_lab = get_present_in_place(df_today, "Laboratory")
 
 # --- Counters ---
-col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="center")
-col1.metric("🙋🏻‍♂️🙋🏼‍♀️ Employees in the office", len(present_employees), border=True)
-col2.metric("➜🏢 Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
+col1, col2, col3, col4 = st.columns([2, 2, 2, 1], vertical_alignment="center")
+col1.metric("🏢 In the Office", len(present_office), border=True)
+col2.metric("🔬 In the Laboratory", len(present_lab), border=True)
+col3.metric("➜ Checked-in today", df_today[df_today["action"] == "check_in"]["user_id"].nunique(), border=True)
 
-# --- Refresh button ---
-with col3:
+with col4:
     if st.button("Refresh", icon=":material/refresh:", type="primary"):
         st.cache_data.clear()
         st.rerun()
 
 # --- Tabs UI ---
-tabs = st.tabs(["Currently in the office", "Attendance Record", "All entries"])
+tabs = st.tabs(["Currently present", "Attendance Record", "All entries"])
 
 with tabs[0]:
-    st.dataframe(present_employees_display, hide_index=True, width='stretch')
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**🏢 Office**")
+        if not present_office.empty:
+            office_display = present_office[["user_id", "entrance", "timestamp"]].copy()
+            office_display.columns = ["Employee", "Entrance", "Last Check-in"]
+            office_display["Last Check-in"] = office_display["Last Check-in"].dt.strftime("%H:%M")
+            st.dataframe(office_display, hide_index=True, use_container_width=True)
+        else:
+            st.info("Nobody in the Office")
+    with c2:
+        st.markdown("**🔬 Laboratory**")
+        if not present_lab.empty:
+            lab_display = present_lab[["user_id", "entrance", "timestamp"]].copy()
+            lab_display.columns = ["Employee", "Entrance", "Last Check-in"]
+            lab_display["Last Check-in"] = lab_display["Last Check-in"].dt.strftime("%H:%M")
+            st.dataframe(lab_display, hide_index=True, use_container_width=True)
+        else:
+            st.info("Nobody in the Laboratory")
 
 with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
     df_filtered = df[df["timestamp"].dt.date == date_selected].copy()
 
-    # --- First check-in and last check-out per employee on selected day ---
-    df_checkins = df_filtered[df_filtered["action"] == "check_in"].sort_values("timestamp")
-    df_checkouts = df_filtered[df_filtered["action"] == "check_out"].sort_values("timestamp")
+    for place, icon in [("Office", "🏢"), ("Laboratory", "🔬")]:
+        st.markdown(f"**{icon} {place}**")
+        df_place = df_filtered[df_filtered["place"] == place]
+        df_checkins = df_place[df_place["action"] == "check_in"].sort_values("timestamp")
+        df_checkouts = df_place[df_place["action"] == "check_out"].sort_values("timestamp")
 
-    first_checkins = df_checkins.groupby("user_id").first().reset_index()
-    last_checkouts = df_checkouts.groupby("user_id").last().reset_index()
+        first_checkins = (df_checkins.groupby("user_id").first().reset_index()
+                          if not df_checkins.empty
+                          else pd.DataFrame(columns=["user_id", "timestamp"]))
+        last_checkouts = (df_checkouts.groupby("user_id").last().reset_index()
+                          if not df_checkouts.empty
+                          else pd.DataFrame(columns=["user_id", "timestamp"]))
 
-    attendance_summary = pd.merge(first_checkins[["user_id", "timestamp"]],
-                                  last_checkouts[["user_id", "timestamp"]],
-                                  on="user_id", how="outer", suffixes=("_in", "_out"))
-    attendance_summary.columns = ["Employee", "First Check-in", "Last Check-out"]
-    attendance_summary["First Check-in"] = attendance_summary["First Check-in"].dt.strftime("%Y-%m-%d %H:%M")
-    attendance_summary["Last Check-out"] = attendance_summary["Last Check-out"].dt.strftime("%Y-%m-%d %H:%M")
-
-    st.dataframe(attendance_summary, hide_index=True, width='stretch')
+        if first_checkins.empty and last_checkouts.empty:
+            st.info(f"No data for {place} on this date.")
+        else:
+            attendance_summary = pd.merge(
+                first_checkins[["user_id", "timestamp"]],
+                last_checkouts[["user_id", "timestamp"]],
+                on="user_id", how="outer", suffixes=("_in", "_out")
+            )
+            attendance_summary.columns = ["Employee", "First Check-in", "Last Check-out"]
+            attendance_summary["First Check-in"] = attendance_summary["First Check-in"].apply(
+                lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
+            )
+            attendance_summary["Last Check-out"] = attendance_summary["Last Check-out"].apply(
+                lambda x: x.strftime("%H:%M") if pd.notna(x) else "-"
+            )
+            st.dataframe(attendance_summary, hide_index=True, use_container_width=True)
 
 with tabs[2]:
-    display_df = df[["user_id", "entrance", "timestamp", "action"]].copy()
-    display_df.columns = ["Employee", "Entrance", "Timestamp", "Action"]
+    display_df = df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
+    display_df.columns = ["Employee", "Place", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
     st.dataframe(display_df, width='stretch', height=500)
