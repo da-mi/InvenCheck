@@ -32,7 +32,7 @@ st.markdown("""
 ##### [TOP BAR WITH LOGO]
 st.markdown("""
     <div style="background-color:#0046ad;padding:0px 15px;display:flex;align-items:center;border-radius:0.35rem;">
-        <img src="https://invensense.tdk.com/web-app-manifest-512x512.png" height="30" style="margin-right:10px"/>
+        <img src="https://invensense.tdk.com/web-app-manifest-512x512.png" height="30" style="margin-right:10px;border-radius:6px"/>
         <h1 style="color:white;margin:0;font-size:1.4em">InvenCheck</h1>
     </div>
     <div style="margin-bottom:20px"></div>
@@ -247,7 +247,7 @@ with tabs[0]:
             office_display = present_office[["user_id", "entrance", "timestamp"]].copy()
             office_display.columns = ["Employee", "Entrance", "Last Check-in"]
             office_display["Last Check-in"] = office_display["Last Check-in"].dt.strftime("%H:%M")
-            st.dataframe(office_display, hide_index=True, use_container_width=True)
+            st.dataframe(office_display, hide_index=True, width='stretch')
         else:
             st.info("Nobody in the Office")
     with c2:
@@ -256,7 +256,7 @@ with tabs[0]:
             lab_display = present_lab[["user_id", "entrance", "timestamp"]].copy()
             lab_display.columns = ["Employee", "Entrance", "Last Check-in"]
             lab_display["Last Check-in"] = lab_display["Last Check-in"].dt.strftime("%H:%M")
-            st.dataframe(lab_display, hide_index=True, use_container_width=True)
+            st.dataframe(lab_display, hide_index=True, width='stretch')
         else:
             st.info("Nobody in the Laboratory")
 
@@ -295,14 +295,14 @@ with tabs[1]:
         st.markdown("**🏢 Office**")
         summary = build_attendance_summary(df_filtered, "Office")
         if summary is not None:
-            st.dataframe(summary, hide_index=True, use_container_width=True)
+            st.dataframe(summary, hide_index=True, width='stretch')
         else:
             st.info("No data for Office on this date.")
     with tc2:
         st.markdown("**🔬 Laboratory**")
         summary = build_attendance_summary(df_filtered, "Laboratory")
         if summary is not None:
-            st.dataframe(summary, hide_index=True, use_container_width=True)
+            st.dataframe(summary, hide_index=True, width='stretch')
         else:
             st.info("No data for Laboratory on this date.")
 
