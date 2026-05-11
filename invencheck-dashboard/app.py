@@ -411,6 +411,7 @@ with tabs[2]:
     source_df = source_df.copy()
     source_df["entrance"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
     source_df["place"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
+    source_df = normalize_attendance(source_df)
     display_df = source_df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Place", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
