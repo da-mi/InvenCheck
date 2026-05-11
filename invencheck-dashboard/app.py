@@ -10,7 +10,7 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil import parser
 
 ##### [PAGE SETTINGS]
@@ -66,6 +66,22 @@ key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
 ##### [DATA LOADING FUNCTIONS]
+@st.cache_data(ttl=60)
+def load_attendance_for_date(date):
+    rome = pytz.timezone("Europe/Rome")
+    start = rome.localize(datetime.combine(date, datetime.min.time())).astimezone(pytz.UTC)
+    end = rome.localize(datetime.combine(date + timedelta(days=1), datetime.min.time())).astimezone(pytz.UTC)
+    response = (supabase.table("attendance").select("*")
+                .gte("timestamp", start.isoformat())
+                .lt("timestamp", end.isoformat())
+                .order("timestamp", desc=True)
+                .execute())
+    if not response.data:
+        return pd.DataFrame(columns=["user_id", "device_id", "action", "timestamp"])
+    df = pd.DataFrame(response.data)
+    df['timestamp'] = df['timestamp'].astype(str).map(parser.parse).map(pd.Timestamp).dt.tz_convert("Europe/Rome")
+    return df.sort_values("timestamp", ascending=False)
+
 @st.cache_data(ttl=300)
 def load_attendance(max_records=4000):
     # Fetch up to max_records records in chunks of 800
@@ -132,13 +148,11 @@ def logout():
     st.session_state.role = None
 
 ##### [SHARED DATA]
-device_df = load_devices()
-df = load_attendance(max_records=800)
-df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
-df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-
 today = datetime.now(pytz.timezone("Europe/Rome")).date()
-df_today = df[df["timestamp"].dt.date == today]
+device_df = load_devices()
+df_today = load_attendance_for_date(today)
+df_today["entrance"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+df_today["place"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
 
 def get_present_in_place(df_day, place):
     df_place = df_day[df_day["place"] == place]
@@ -300,7 +314,11 @@ with tabs[0]:
 
 with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
-    df_filtered = df[df["timestamp"].dt.date == date_selected].copy()
+
+    df_filtered = load_attendance_for_date(date_selected)
+    if not df_filtered.empty:
+        df_filtered["entrance"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+        df_filtered["place"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
 
     def build_attendance_summary(df_filtered, place):
         df_place = df_filtered[df_filtered["place"] == place]
@@ -353,13 +371,13 @@ with tabs[2]:
         if st.button("Load all entries", icon=":material/download:"):
             st.session_state.load_all_entries = True
             st.rerun()
-        source_df = df
+        source_df = load_attendance(max_records=800)
     else:
-        df_all = load_attendance(max_records=4000)
-        df_all["entrance"] = df_all["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
-        df_all["place"] = df_all["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-        source_df = df_all
+        source_df = load_attendance(max_records=4000)
 
+    source_df = source_df.copy()
+    source_df["entrance"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+    source_df["place"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
     display_df = source_df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Place", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
