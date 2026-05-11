@@ -50,6 +50,8 @@ def resolve_place(device_id, device_df):
         return "Manual", "Laboratory"
     if device_id == "Manual":
         return "Manual", "Office"
+    if device_id == "Automatic":
+        return "Automatic", "Unknown"
     matches = device_df[device_df["device_id"] == device_id]
     if matches.empty:
         return "Unknown", "Unknown"
@@ -59,6 +61,33 @@ def resolve_place(device_id, device_df):
     if location in LABORATORY_LOCATIONS:
         return location, "Laboratory"
     return location, "Unknown"
+
+def normalize_attendance(df):
+    """Insert virtual checkouts when a user checks in at a new location without checking out from the previous one."""
+    if df.empty:
+        return df
+    extra_rows = []
+    for _, events in df.groupby("user_id"):
+        events = events.sort_values("timestamp")
+        active_place = None
+        active_row = None
+        for _, row in events.iterrows():
+            if row["action"] == "check_in":
+                if active_place is not None and active_place != row["place"]:
+                    virtual = active_row.copy()
+                    virtual["action"] = "check_out"
+                    virtual["timestamp"] = row["timestamp"]
+                    virtual["device_id"] = "Automatic"
+                    virtual["entrance"] = "Automatic"
+                    extra_rows.append(virtual)
+                active_place = row["place"]
+                active_row = row
+            elif row["action"] == "check_out" and row["place"] == active_place:
+                active_place = None
+                active_row = None
+    if extra_rows:
+        df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True).sort_values("timestamp", ascending=False)
+    return df
 
 ##### [SUPABASE SETUP]
 url = st.secrets["SUPABASE_URL"]
@@ -153,6 +182,7 @@ device_df = load_devices()
 df_today = load_attendance_for_date(today)
 df_today["entrance"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
 df_today["place"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
+df_today = normalize_attendance(df_today)
 
 def get_present_in_place(df_day, place):
     df_place = df_day[df_day["place"] == place]
@@ -319,6 +349,7 @@ with tabs[1]:
     if not df_filtered.empty:
         df_filtered["entrance"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
         df_filtered["place"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
+        df_filtered = normalize_attendance(df_filtered)
 
     def build_attendance_summary(df_filtered, place):
         df_place = df_filtered[df_filtered["place"] == place]
