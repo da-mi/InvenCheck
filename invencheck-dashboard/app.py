@@ -133,7 +133,7 @@ def logout():
 
 ##### [SHARED DATA]
 device_df = load_devices()
-df = load_attendance(max_records=800 if st.session_state.role == "user" else 4000)
+df = load_attendance(max_records=800)
 df["entrance"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
 df["place"] = df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
 
@@ -345,7 +345,22 @@ with tabs[1]:
             st.info("No data for Laboratory on this date.")
 
 with tabs[2]:
-    display_df = df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
+    if "load_all_entries" not in st.session_state:
+        st.session_state.load_all_entries = False
+
+    if not st.session_state.load_all_entries:
+        st.info("Showing last 800 entries.")
+        if st.button("Load all entries", icon=":material/download:"):
+            st.session_state.load_all_entries = True
+            st.rerun()
+        source_df = df
+    else:
+        df_all = load_attendance(max_records=4000)
+        df_all["entrance"] = df_all["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+        df_all["place"] = df_all["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
+        source_df = df_all
+
+    display_df = source_df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Place", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
     st.dataframe(display_df, width='stretch', height=500)
