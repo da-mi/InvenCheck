@@ -348,15 +348,17 @@ with tabs[1]:
 
     tc1, tc2 = st.columns(2)
     with tc1:
-        st.markdown("**🏢 Office**")
         summary = build_attendance_summary(df_filtered, "Office")
+        count = len(summary) if summary is not None else 0
+        st.markdown(f"**🏢 Office — {count} {'person' if count == 1 else 'people'}**")
         if summary is not None:
             st.dataframe(summary, hide_index=True, width='stretch')
         else:
             st.info("No data for Office on this date.")
     with tc2:
-        st.markdown("**🔬 Laboratory**")
         summary = build_attendance_summary(df_filtered, "Laboratory")
+        count = len(summary) if summary is not None else 0
+        st.markdown(f"**🔬 Laboratory — {count} {'person' if count == 1 else 'people'}**")
         if summary is not None:
             st.dataframe(summary, hide_index=True, width='stretch')
         else:
