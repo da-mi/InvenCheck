@@ -360,9 +360,9 @@ with tabs[1]:
     date_selected = st.date_input("📅 Select date to view attendance", today)
 
     df_filtered = load_attendance_for_date(date_selected)
+    df_filtered["entrance"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
+    df_filtered["place"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
     if not df_filtered.empty:
-        df_filtered["entrance"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
-        df_filtered["place"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
         df_filtered, _new_rows = normalize_attendance(df_filtered)
         if _new_rows:
             persist_auto_checkouts(_new_rows)
