@@ -50,8 +50,10 @@ def resolve_place(device_id, device_df):
         return "Manual", "Laboratory"
     if device_id == "Manual":
         return "Manual", "Office"
-    if device_id == "Automatic":
-        return "Automatic", "Unknown"
+    if device_id == "Automatic-Office":
+        return "Automatic", "Office"
+    if device_id == "Automatic-Laboratory":
+        return "Automatic", "Laboratory"
     matches = device_df[device_df["device_id"] == device_id]
     if matches.empty:
         return "Unknown", "Unknown"
@@ -77,7 +79,7 @@ def normalize_attendance(df):
                     virtual = active_row.copy()
                     virtual["action"] = "check_out"
                     virtual["timestamp"] = row["timestamp"]
-                    virtual["device_id"] = "Automatic"
+                    virtual["device_id"] = f"Automatic-{active_place}"
                     virtual["entrance"] = "Automatic"
                     extra_rows.append(virtual)
                 active_place = row["place"]
@@ -90,16 +92,23 @@ def normalize_attendance(df):
     return df, extra_rows
 
 def persist_auto_checkouts(virtual_rows):
-    """Write auto-generated checkout rows to Supabase and refresh cached data."""
-    for row in virtual_rows:
+    """Write auto-generated checkout rows to Supabase. Deduplicates within the session to avoid re-inserting before the cache refreshes."""
+    if "persisted_auto_checkouts" not in st.session_state:
+        st.session_state.persisted_auto_checkouts = set()
+    new_rows = [
+        row for row in virtual_rows
+        if (row["user_id"], str(row["timestamp"])) not in st.session_state.persisted_auto_checkouts
+    ]
+    for row in new_rows:
         supabase.table("attendance").insert({
             "user_id": row["user_id"],
             "action": "check_out",
             "timestamp": row["timestamp"].astimezone(pytz.UTC).isoformat(),
-            "device_id": "Automatic",
+            "device_id": row["device_id"],
         }).execute()
-    st.cache_data.clear()
-    st.rerun()
+        st.session_state.persisted_auto_checkouts.add((row["user_id"], str(row["timestamp"])))
+    if new_rows:
+        st.cache_data.clear()
 
 ##### [SUPABASE SETUP]
 url = st.secrets["SUPABASE_URL"]
