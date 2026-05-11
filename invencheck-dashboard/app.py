@@ -39,8 +39,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 ##### [LOCATION CONFIGURATION]
-OFFICE_LOCATIONS = {"Ingresso A8", "Ingresso A10"}
-LABORATORY_LOCATIONS = {"Laboratorio", "Backup"}
+OFFICE_LOCATIONS = {"Ingresso A8", "Ingresso A10", "Backup"}
+LABORATORY_LOCATIONS = {"Laboratorio", "BackupLab"}
 
 def resolve_place(device_id, device_df):
     """Returns (entrance_label, place) for a given device_id."""
@@ -109,21 +109,23 @@ def load_users():
 if "role" not in st.session_state:
     st.session_state.role = None
 
-if st.session_state.role is None:
-    _, center, _ = st.columns([2, 1, 2])
-    with center:
-        st.markdown("#### Sign in")
-        password = st.text_input("Password", type="password")
-        if st.button("Login", type="primary", icon=":material/login:"):
-            if password == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.role = "admin"
-                st.rerun()
-            elif password == st.secrets["USER_PASSWORD"]:
-                st.session_state.role = "user"
-                st.rerun()
-            else:
-                st.error("Incorrect password.")
-    st.stop()
+# Login disabled temporarily — uncomment this block and remove the line below to re-enable
+# if st.session_state.role is None:
+#     _, center, _ = st.columns([2, 1, 2])
+#     with center:
+#         st.markdown("#### Sign in")
+#         password = st.text_input("Password", type="password")
+#         if st.button("Login", type="primary", icon=":material/login:"):
+#             if password == st.secrets["ADMIN_PASSWORD"]:
+#                 st.session_state.role = "admin"
+#                 st.rerun()
+#             elif password == st.secrets["USER_PASSWORD"]:
+#                 st.session_state.role = "user"
+#                 st.rerun()
+#             else:
+#                 st.error("Incorrect password.")
+#     st.stop()
+st.session_state.role = "admin"
 
 ##### [LOGOUT BUTTON - sidebar for admin, main area for user]
 def logout():
