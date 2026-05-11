@@ -63,9 +63,9 @@ def resolve_place(device_id, device_df):
     return location, "Unknown"
 
 def normalize_attendance(df):
-    """Insert virtual checkouts when a user checks in at a new location without checking out from the previous one."""
+    """Detect missing cross-location checkouts. Returns (enriched_df, list_of_virtual_rows)."""
     if df.empty:
-        return df
+        return df, []
     extra_rows = []
     for _, events in df.groupby("user_id"):
         events = events.sort_values("timestamp")
@@ -87,7 +87,19 @@ def normalize_attendance(df):
                 active_row = None
     if extra_rows:
         df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True).sort_values("timestamp", ascending=False)
-    return df
+    return df, extra_rows
+
+def persist_auto_checkouts(virtual_rows):
+    """Write auto-generated checkout rows to Supabase and refresh cached data."""
+    for row in virtual_rows:
+        supabase.table("attendance").insert({
+            "user_id": row["user_id"],
+            "action": "check_out",
+            "timestamp": row["timestamp"].astimezone(pytz.UTC).isoformat(),
+            "device_id": "Automatic",
+        }).execute()
+    st.cache_data.clear()
+    st.rerun()
 
 ##### [SUPABASE SETUP]
 url = st.secrets["SUPABASE_URL"]
@@ -182,7 +194,9 @@ device_df = load_devices()
 df_today = load_attendance_for_date(today)
 df_today["entrance"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
 df_today["place"] = df_today["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-df_today = normalize_attendance(df_today)
+df_today, _new_rows = normalize_attendance(df_today)
+if _new_rows:
+    persist_auto_checkouts(_new_rows)
 
 def get_present_in_place(df_day, place):
     df_place = df_day[df_day["place"] == place]
@@ -349,7 +363,9 @@ with tabs[1]:
     if not df_filtered.empty:
         df_filtered["entrance"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
         df_filtered["place"] = df_filtered["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-        df_filtered = normalize_attendance(df_filtered)
+        df_filtered, _new_rows = normalize_attendance(df_filtered)
+        if _new_rows:
+            persist_auto_checkouts(_new_rows)
 
     def build_attendance_summary(df_filtered, place):
         df_place = df_filtered[df_filtered["place"] == place]
@@ -411,7 +427,6 @@ with tabs[2]:
     source_df = source_df.copy()
     source_df["entrance"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[0])
     source_df["place"] = source_df["device_id"].apply(lambda x: resolve_place(x, device_df)[1])
-    source_df = normalize_attendance(source_df)
     display_df = source_df[["user_id", "place", "entrance", "timestamp", "action"]].copy()
     display_df.columns = ["Employee", "Place", "Entrance", "Timestamp", "Action"]
     display_df["Timestamp"] = display_df["Timestamp"].dt.strftime("%Y-%m-%d %H:%M")
