@@ -22,6 +22,59 @@ print_banner() {
 
 # === FUNCTIONS ===
 
+setup_persistent_wlan_names() {
+    echo "-> Detecting WiFi interfaces..."
+
+    # Get all wlan interfaces and their MAC addresses
+    WLAN_INTERFACES=$(ip link show | grep -E "^[0-9]+: wlan" | awk '{print $2}' | tr -d ':')
+
+    if [ -z "$WLAN_INTERFACES" ]; then
+        echo "   Warning: No WiFi interfaces found"
+        return
+    fi
+
+    # Detect internal vs USB by driver
+    INTERNAL_MAC=""
+    USB_MAC=""
+
+    for IFACE in $WLAN_INTERFACES; do
+        MAC=$(cat /sys/class/net/$IFACE/address 2>/dev/null)
+        DRIVER=$(basename $(readlink /sys/class/net/$IFACE/device/driver) 2>/dev/null)
+
+        if [[ "$DRIVER" == *"brcm"* ]] || [[ "$DRIVER" == *"aic8800"* ]] || [[ ! -L /sys/class/net/$IFACE/device ]]; then
+            # Likely internal (Broadcom or AIC8800)
+            INTERNAL_MAC="$MAC"
+            echo "   Internal WiFi: $IFACE ($MAC)"
+        else
+            # Likely USB
+            USB_MAC="$MAC"
+            echo "   USB WiFi: $IFACE ($MAC)"
+        fi
+    done
+
+    # If only one interface, keep it as wlan0
+    if [ -z "$USB_MAC" ]; then
+        echo "   Single interface detected, skipping persistent naming"
+        return
+    fi
+
+    # Create udev rule file
+    echo "-> Creating udev rules..."
+    cat <<EOF >/etc/udev/rules.d/70-persistent-wlan.rules
+# Internal WiFi → wlan0
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$INTERNAL_MAC", NAME="wlan0"
+
+# USB WiFi dongle → wlan1
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$USB_MAC", NAME="wlan1"
+EOF
+
+    # Apply udev rules
+    udevadm control --reload-rules
+    udevadm trigger
+
+    echo "   Udev rules applied. Interfaces will be stable after reboot."
+}
+
 setup_base() {
     echo "[System] Updating system..."
     apt update
@@ -227,6 +280,7 @@ case "$1" in
     install)
         setup_base
         build_wifi_driver
+        setup_persistent_wlan_names
         clone_repo
         setup_venv
         setup_service
