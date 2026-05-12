@@ -54,27 +54,56 @@ class LCD:
         def get_diagnostic_screens():
             hostname = socket.gethostname()
 
-            # SSID
-            try:
-                ssid = subprocess.check_output(['iwgetid', '-r'], text=True).strip() or "Unknown"
-            except:
-                ssid = "Unknown"
+            def get_interface_ssid(interface):
+                try:
+                    return subprocess.check_output(['iwgetid', interface, '-r'], text=True).strip() or "Unknown"
+                except:
+                    return "Unknown"
 
-            # IP wlan0
-            try:
-                ip_output_wlan = subprocess.check_output(['ip', '-4', 'addr', 'show', 'wlan0'], text=True)
-                ip_line_wlan = next((line for line in ip_output_wlan.splitlines() if "inet " in line), "")
-                ip_wlan = ip_line_wlan.split()[1].split('/')[0] if ip_line_wlan else "N/A"
-            except:
-                ip_wlan = "N/A"
+            def get_interface_ip(interface):
+                try:
+                    ip_output = subprocess.check_output(['ip', '-4', 'addr', 'show', interface], text=True)
+                    ip_line = next((line for line in ip_output.splitlines() if "inet " in line), "")
+                    return ip_line.split()[1].split('/')[0] if ip_line else "N/A"
+                except:
+                    return "N/A"
 
-            # IP usb0
-            try:
-                ip_output_usb = subprocess.check_output(['ip', '-4', 'addr', 'show', 'usb0'], text=True)
-                ip_line_usb = next((line for line in ip_output_usb.splitlines() if "inet " in line), "")
-                ip_usb = ip_line_usb.split()[1].split('/')[0] if ip_line_usb else "N/A"
-            except:
-                ip_usb = "N/A"
+            def get_interface_signal(interface):
+                try:
+                    with open('/proc/net/wireless', 'r') as f:
+                        lines = f.readlines()
+                    target_line = next((line for line in lines if line.strip().startswith(f"{interface}:")), None)
+                    if not target_line:
+                        return "N/A", "N/A", "Unknown"
+
+                    fields = target_line.replace(':', ' ').split()
+                    link_quality = float(fields[2].rstrip('.'))
+                    level_dbm = int(float(fields[3].rstrip('.')))
+                    quality_pct = max(0, min(100, int((link_quality / 70.0) * 100)))
+
+                    if quality_pct >= 75:
+                        stability = "Stable"
+                    elif quality_pct >= 45:
+                        stability = "Fair"
+                    elif quality_pct > 0:
+                        stability = "Weak"
+                    else:
+                        stability = "NoLink"
+
+                    return f"{quality_pct}%", f"{level_dbm}dBm", stability
+                except:
+                    return "N/A", "N/A", "Unknown"
+
+            def build_wlan_screen(interface):
+                ssid = get_interface_ssid(interface)
+                ip_addr = get_interface_ip(interface)
+                quality, level_dbm, stability = get_interface_signal(interface)
+                return [
+                    f"{interface.upper()} DIAGNOSTIC",
+                    f"SSID {ssid[:15]}",
+                    f"IP   {ip_addr[:15]}",
+                    f"SIG  {level_dbm} {quality} {stability[:5]}",
+                ]
 
             # Git info from parent directory
             try:
@@ -105,26 +134,22 @@ class LCD:
             minutes = int((uptime_seconds % 3600) // 60)
             uptime_str = f"{days}d{hours}h{minutes}m"
 
-            screen1 = [
+            screen_base = [
                 f"HOST {hostname}",
-                f"SSID {ssid[:15]}",
-                f"WLAN {ip_wlan}",
-                f"USB  {ip_usb}",
-            ]
-            screen2 = [
                 f"GIT  {git_hash} {git_date}",
                 f"CPU  {cpu_usage:.0f}%    MEM  {mem_usage:.0f}%",
-                f"TEMP {temp_c:.1f}C",
-                f"UP   {uptime_str}",
+                f"TEMP {temp_c:.1f}C UP {uptime_str}",
             ]
-            return screen1, screen2
+            screen_wlan0 = build_wlan_screen('wlan0')
+            screen_wlan1 = build_wlan_screen('wlan1')
+
+            return [screen_base, screen_wlan0, screen_wlan1]
 
         try:
-            screen1, screen2 = get_diagnostic_screens()
-            self.show_message(screen1, duration=5)
-            time.sleep(5)
-            self.show_message(screen2, duration=5)
-            time.sleep(5)
+            screens = get_diagnostic_screens()
+            for screen in screens:
+                self.show_message(screen, duration=5)
+                time.sleep(5)
             self._default_screen(force=True)
         except Exception as e:
             self.show_message(["Diagnostic Fail", str(e), "", ""], duration=self.default_interval)
