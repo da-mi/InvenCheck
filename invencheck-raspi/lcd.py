@@ -99,7 +99,7 @@ class LCD:
                 ip_addr = get_interface_ip(interface)
                 quality, level_dbm, stability = get_interface_signal(interface)
                 return [
-                    f"{interface.upper()} DIAGNOSTIC",
+                    f"{interface.upper()} {hostname[:13]}",
                     f"SSID {ssid[:15]}",
                     f"IP   {ip_addr[:15]}",
                     f"SIG  {level_dbm} {quality} {stability[:5]}",
@@ -135,10 +135,10 @@ class LCD:
             uptime_str = f"{days}d{hours}h{minutes}m"
 
             screen_base = [
-                f"HOST {hostname}",
                 f"GIT  {git_hash} {git_date}",
                 f"CPU  {cpu_usage:.0f}%    MEM  {mem_usage:.0f}%",
-                f"TEMP {temp_c:.1f}C UP {uptime_str}",
+                f"TEMP {temp_c:.1f}C",
+                f"UP   {uptime_str}",
             ]
             screen_wlan0 = build_wlan_screen('wlan0')
             screen_wlan1 = build_wlan_screen('wlan1')
