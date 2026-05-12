@@ -13,8 +13,9 @@ import socket
 import fcntl
 import struct
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import time as dt_time
+from email.utils import parsedate_to_datetime
 import pytz
 
 from dotenv import load_dotenv
@@ -59,6 +60,56 @@ employee_cache = {}
 last_uid_scanned = None
 repeat_count = 0
 xmas_count = 0
+
+TIME_TOLERANCE_SECONDS = 300  # Accept local time if within 5 minutes of server
+time_offset_seconds = 0.0
+time_offset_lock = threading.Lock()
+
+
+def refresh_time_offset_from_server():
+    global time_offset_seconds
+    try:
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/", headers=HEADERS, timeout=3)
+        date_header = response.headers.get("Date")
+        if not date_header:
+            return False
+
+        server_dt = parsedate_to_datetime(date_header)
+        if server_dt is None:
+            return False
+
+        server_utc = server_dt.astimezone(pytz.utc).replace(tzinfo=None)
+        local_utc = datetime.utcnow()
+        offset = (server_utc - local_utc).total_seconds()
+
+        with time_offset_lock:
+            time_offset_seconds = offset
+
+        if abs(offset) > TIME_TOLERANCE_SECONDS:
+            print(f"[TIME] Clock offset detected: {offset:.2f}s (using server time)")
+        else:
+            print(f"[TIME] Clock offset: {offset:.2f}s (within tolerance)")
+        return True
+    except Exception as e:
+        print(f"[WARN] Failed to refresh server time offset: {e}")
+        return False
+
+
+def local_time_is_sane():
+    with time_offset_lock:
+        offset = abs(time_offset_seconds)
+    return offset <= TIME_TOLERANCE_SECONDS
+
+
+def now_utc_iso():
+    # Refresh offset on demand if local time is not within tolerance
+    if not local_time_is_sane():
+        refresh_time_offset_from_server()
+
+    with time_offset_lock:
+        offset = time_offset_seconds
+
+    return (datetime.utcnow() + timedelta(seconds=offset)).isoformat()
 
 # === NFC Logic ===
 def load_all_employees():
@@ -141,7 +192,7 @@ def register_unknown_employee(uid):
     
 def update_unknown_timestamp(uid):
     print("[DB] Updating timestamp for unknown UID...")
-    payload = {"timestamp": datetime.utcnow().isoformat()}
+    payload = {"timestamp": now_utc_iso()}
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}&user_id=eq.Unknown",
@@ -159,7 +210,14 @@ def update_unknown_timestamp(uid):
 
 def get_today_cutoff_utc():
     rome = pytz.timezone("Europe/Rome")
-    local_midnight = rome.localize(datetime.combine(datetime.now(rome).date(), dt_time.min))
+    if not local_time_is_sane():
+        refresh_time_offset_from_server()
+
+    with time_offset_lock:
+        offset = time_offset_seconds
+
+    local_now = datetime.utcnow() + timedelta(seconds=offset)
+    local_midnight = rome.localize(datetime.combine(local_now.astimezone(rome).date(), dt_time.min))
     return local_midnight.astimezone(pytz.utc).isoformat().replace("+00:00", "Z")
 
 def get_last_action_today(user_id):
@@ -187,7 +245,7 @@ def register_action(user_id, action, device_id):
     print(f"[DB] Processing {action} for \"{user_id}\" at {device_id}")
     payload = {
         "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": now_utc_iso(),
         "action": action,
         "device_id": device_id
     }
@@ -283,9 +341,10 @@ def get_wlan_ip():
     
 def device_heartbeat():
     while True:
+        refresh_time_offset_from_server()
         ip = get_wlan_ip()
         payload = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": now_utc_iso(),
             "ip": ip
         }
         try:
@@ -331,7 +390,8 @@ def main_loop():
     print("\033[1;36m**** TDK InvenCheck - NFC Attendance System ****\033[0m")
     print("\033[1;36mdamiano.milani@tdk.com - 2025\033[0m")
     
-    load_all_employees()
+    # Avoid blocking startup on remote DB fetch.
+    threading.Thread(target=load_all_employees, daemon=True).start()
     threading.Thread(target=nightly_employee_refresh, daemon=True).start()
     threading.Thread(target=device_heartbeat, daemon=True).start()
     threading.Thread(target=internet_check, daemon=True).start()

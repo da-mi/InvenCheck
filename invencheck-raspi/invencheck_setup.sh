@@ -112,8 +112,6 @@ EOF
     echo "[Service] Enabling time synchronization..."
     systemctl enable systemd-timesyncd
     systemctl start systemd-timesyncd
-    systemctl enable systemd-time-wait-sync
-    systemctl start systemd-time-wait-sync
     echo
 
     echo "[Service] Configuring SNMP client..."
@@ -202,8 +200,8 @@ EOF
     cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=InvenCheck NFC Attendance System
-After=network-online.target systemd-time-wait-sync.service pigpiod.service
-Wants=network-online.target systemd-time-wait-sync.service pigpiod.service
+After=network.target pigpiod.service
+Wants=pigpiod.service
 
 [Service]
 Type=simple
