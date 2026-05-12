@@ -65,7 +65,7 @@ def load_all_employees():
     print("[DB] Loading all employees from Supabase...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?select=uid,user_id"
     try:
-        response = requests.get(url, headers=HEADERS)
+        response = requests.get(url, headers=HEADERS, timeout=5)
         if response.status_code == 200:
             for employee in response.json():
                 employee_cache[str(employee["uid"])] = employee
@@ -79,7 +79,7 @@ def delete_unknown_employees():
     print("[DB] Cleaning unknown tags from remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?user_id=eq.Unknown"
     try:
-        response = requests.delete(url, headers=HEADERS)
+        response = requests.delete(url, headers=HEADERS, timeout=5)
         if response.status_code in (200, 204):
             print("[DB] Unknown employees removed from Supabase.")
         else:
@@ -110,41 +110,51 @@ def get_employee_by_uid(uid):
 
     print(f"[DB] Tag UID {uid} not found in cache. Checking remote database...")
     url = f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code == 200:
-        data = response.json()
-        if data:
-            employee_cache[uid_str] = data[0]
-            print(f"[DB] UID {uid} fetched and cached.")
-            return data[0]
-    else:
-        print(f"[ERROR] Failed to fetch UID {uid}: {response.text}")
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                employee_cache[uid_str] = data[0]
+                print(f"[DB] UID {uid} fetched and cached.")
+                return data[0]
+        else:
+            print(f"[ERROR] Failed to fetch UID {uid}: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Network error fetching UID {uid}: {e}")
     return None
 
 def register_unknown_employee(uid):
     print("[DB] Registering unknown tag UID...")
     payload = {"uid": str(uid), "user_id": "Unknown"}
-    response = requests.post(f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}", headers=HEADERS, json=payload)
-    if response.status_code in (200, 201):
-        print(f"[DB] Unknown employee with UID {uid} registered.")
-        employee_cache[str(uid)] = payload
-        return payload
-    else:
-        print(f"[ERROR] Failed to register employee: {response.text}")
-        return None
+    try:
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}", headers=HEADERS, json=payload, timeout=5)
+        if response.status_code in (200, 201):
+            print(f"[DB] Unknown employee with UID {uid} registered.")
+            employee_cache[str(uid)] = payload
+            return payload
+        else:
+            print(f"[ERROR] Failed to register employee: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Network error registering unknown UID {uid}: {e}")
+    return None
     
 def update_unknown_timestamp(uid):
     print("[DB] Updating timestamp for unknown UID...")
     payload = {"timestamp": datetime.utcnow().isoformat()}
-    response = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}&user_id=eq.Unknown",
-        headers=HEADERS,
-        json=payload
-    )
-    if response.status_code in (200, 204):
-        print(f"[DB] Updated timestamp for unknown UID {uid}.")
-    else:
-        print(f"[ERROR] Failed to update timestamp for unknown UID {uid}: {response.text}")
+    try:
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/{EMPLOYEES_TABLE}?uid=eq.{uid}&user_id=eq.Unknown",
+            headers=HEADERS,
+            json=payload,
+            timeout=5
+        )
+        if response.status_code in (200, 204):
+            print(f"[DB] Updated timestamp for unknown UID {uid}.")
+        else:
+            print(f"[ERROR] Failed to update timestamp for unknown UID {uid}: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Network error updating timestamp for unknown UID {uid}: {e}")
 
 
 def get_today_cutoff_utc():
@@ -160,14 +170,18 @@ def get_last_action_today(user_id):
         f"?user_id=eq.{user_id}&timestamp=gte.{utc_cutoff}"
         f"&order=timestamp.desc&limit=1"
     )
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code == 200:
-        data = response.json()
-        print("[DB] Last action correctly retrieved.")
-        return data[0]["action"] if data else None
-    else:
-        print(f"[ERROR] Failed to query Supabase: {response.text}")
-        return None
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            print("[DB] Last action correctly retrieved.")
+            return data[0]["action"] if data else None
+        else:
+            print(f"[ERROR] Failed to query Supabase: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Network error querying last action for {user_id}: {e}")
+        raise
+    return None
 
 def register_action(user_id, action, device_id):
     print(f"[DB] Processing {action} for \"{user_id}\" at {device_id}")
@@ -177,7 +191,13 @@ def register_action(user_id, action, device_id):
         "action": action,
         "device_id": device_id
     }
-    response = requests.post(f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}", headers=HEADERS, json=payload)
+    try:
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/{ATTENDANCE_TABLE}", headers=HEADERS, json=payload, timeout=5)
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Network error registering action for {user_id}: {e}")
+        lcd.show_message(["NETWORK ERROR", "Check connection", "Badge again later"])
+        buzzer.error()
+        return
     if response.status_code in (200, 201):
         now = datetime.now()
         raspiside = "raspi01" in DEVICE_ID.lower()
@@ -356,6 +376,11 @@ def main_loop():
             register_action(user_id, action, DEVICE_ID)
             time.sleep(0.25) #wait time for next scan
 
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Network error: {e}")
+            lcd.show_message(["NETWORK ERROR", "Check connection", "Badge again later"])
+            buzzer.error()
+            time.sleep(2)
         except Exception as e:
             print(f"[ERROR] {e}")
             lcd.show_message(["ERROR",str(e)[:60]])
