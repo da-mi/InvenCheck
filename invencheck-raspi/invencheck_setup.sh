@@ -8,6 +8,8 @@ VENV_DIR="$INSTALL_DIR/venv"
 PY_VENV_ALIAS="py-invencheck"
 SERVICE_NAME="invencheck"
 SNMP_COMMUNITY="itmxp-invensense"
+DRIVER_MARKER_FILE="/var/lib/invencheck/wifi_driver_installed"
+FORCE_WIFI_DRIVER_BUILD=0
 
 # === BANNER ===
 print_banner() {
@@ -115,8 +117,13 @@ EOF
     echo
 
     echo "[Service] Configuring SNMP client..."
-    sed -i "s/^rocommunity .*/rocommunity $SNMP_COMMUNITY/" /etc/snmp/snmpd.conf || \
-    echo "rocommunity $SNMP_COMMUNITY" >> /etc/snmp/snmpd.conf
+    if grep -Eq "^[[:space:]]*rocommunity[[:space:]]+$SNMP_COMMUNITY([[:space:]]|$)" /etc/snmp/snmpd.conf; then
+        echo "-> SNMP community already configured"
+    elif grep -Eq "^[[:space:]]*rocommunity[[:space:]]+" /etc/snmp/snmpd.conf; then
+        sed -i "0,/^[[:space:]]*rocommunity[[:space:]]\+.*/s//rocommunity $SNMP_COMMUNITY/" /etc/snmp/snmpd.conf
+    else
+        echo "rocommunity $SNMP_COMMUNITY" >> /etc/snmp/snmpd.conf
+    fi
     systemctl enable snmpd
     systemctl restart snmpd
     echo
@@ -129,6 +136,13 @@ EOF
 build_wifi_driver() {
     DRIVER_REPO="https://github.com/da-mi/aic8800dc-linux-patched"
     DRIVER_BUILD_DIR="/tmp/aic8800dc-build"
+
+    if [ "$FORCE_WIFI_DRIVER_BUILD" -ne 1 ] && [ -f "$DRIVER_MARKER_FILE" ]; then
+        echo "[Driver] Marker found, skipping WiFi driver build."
+        echo "         Use '--rebuild-wifi-driver' with install to force rebuild."
+        echo
+        return
+    fi
 
     echo "[Driver] Installing build dependencies..."
     apt install -y git dkms build-essential linux-headers-$(uname -r) linux-headers-generic
@@ -145,6 +159,8 @@ build_wifi_driver() {
     echo
 
     rm -rf "$DRIVER_BUILD_DIR"
+    mkdir -p "$(dirname "$DRIVER_MARKER_FILE")"
+    date -Iseconds > "$DRIVER_MARKER_FILE"
     echo "[OK] WiFi driver build and install complete."
     echo
 }
@@ -175,7 +191,11 @@ clone_repo() {
     fi
     
     echo "-> Setting Git safe.directory for ${INSTALL_DIR}"
-    git config --system --add safe.directory "$INSTALL_DIR"
+    if git config --system --get-all safe.directory | grep -Fxq "$INSTALL_DIR"; then
+        echo "-> safe.directory already configured"
+    else
+        git config --system --add safe.directory "$INSTALL_DIR"
+    fi
 
     cd "$INSTALL_DIR"
     echo "-> Install/update time: $(date)"
@@ -235,7 +255,6 @@ EOF
     echo "-> Running new services..."
     systemctl daemon-reexec
     systemctl daemon-reload
-    systemctl daemon-reload
     systemctl is-active --quiet pigpiod && systemctl restart pigpiod || systemctl start pigpiod
     systemctl enable boot-lcd.service
     systemctl enable "$SERVICE_NAME"
@@ -276,6 +295,21 @@ print_banner
 
 case "$1" in
     install)
+        for arg in "$@"; do
+            case "$arg" in
+                install)
+                    ;;
+                --rebuild-wifi-driver)
+                    FORCE_WIFI_DRIVER_BUILD=1
+                    ;;
+                *)
+                    echo "Unknown option for install: $arg"
+                    echo "Usage: $0 install [--rebuild-wifi-driver]"
+                    exit 1
+                    ;;
+            esac
+        done
+
         setup_base
         build_wifi_driver
         setup_persistent_wlan_names
@@ -290,7 +324,7 @@ case "$1" in
         update_repo
         ;;
     *)
-        echo "Usage: $0 [install|update]"
+        echo "Usage: $0 [install [--rebuild-wifi-driver]|update]"
         exit 1
         ;;
 esac
