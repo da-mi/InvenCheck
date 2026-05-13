@@ -39,7 +39,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 ##### [LOCATION CONFIGURATION]
-OFFICE_LOCATIONS = {"Ingresso A8", "Ingresso A10", "Backup"}
+OFFICE_LOCATIONS = {"Ingresso A8", "Ingresso A10", "Backup", "BackupOffice"}
 LABORATORY_LOCATIONS = {"Laboratorio", "BackupLab"}
 
 def resolve_place(device_id, device_df):

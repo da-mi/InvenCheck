@@ -61,7 +61,7 @@ last_uid_scanned = None
 repeat_count = 0
 xmas_count = 0
 
-TIME_TOLERANCE_SECONDS = 300  # Accept local time if within 5 minutes of server
+TIME_TOLERANCE_SECONDS = 30  # Accept local time if within 30 seconds of server
 time_offset_seconds = 0.0
 time_offset_lock = threading.Lock()
 
