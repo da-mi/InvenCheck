@@ -166,10 +166,18 @@ def load_devices():
 
 @st.cache_data(ttl=300)
 def load_users():
-    response = supabase.table("users").select("uid, user_id, timestamp").execute()
+    response = supabase.table("users").select("uid, user_id, timestamp, is_temporary, expiration_date, company, reason, document_type, document_number").execute()
     df = pd.DataFrame(response.data)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    if not df.empty:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
+
+@st.cache_data(ttl=300)
+def load_deactivated_users():
+    response = supabase.table("deactivated_users").select(
+        "user_id, arrived_at, expiration_date, company, reason, document_type, document_number"
+    ).execute()
+    return pd.DataFrame(response.data)
 
 ##### [LOGIN]
 if "role" not in st.session_state:
@@ -360,7 +368,13 @@ st.sidebar.button("Logout", icon=":material/logout:", on_click=logout)
 # --- Main view ---
 render_counters_and_refresh()
 
-tabs = st.tabs(["Currently present", "Attendance Record", "All entries"])
+tabs = st.tabs([
+    "Currently present", 
+    "Attendance Record", 
+    "Guests", 
+    "Deactivated Guests", 
+    "All entries"
+])
 
 with tabs[0]:
     render_present_tables()
@@ -421,6 +435,73 @@ with tabs[1]:
             st.info("No data for Laboratory on this date.")
 
 with tabs[2]:
+    st.subheader(":material/timer: Users with Temporary Access")
+    if not users_df.empty and "is_temporary" in users_df.columns:
+        temp_users = users_df[users_df["is_temporary"] == True].copy()
+        if not temp_users.empty:
+            display_temp = temp_users[["user_id", "timestamp","expiration_date","company","reason","document_type","document_number"]].copy()
+            display_temp["timestamp"] = pd.to_datetime(display_temp["timestamp"], errors='coerce')
+            display_temp["timestamp"] = display_temp["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
+            display_temp["expiration_date"] = pd.to_datetime(display_temp["expiration_date"], errors='coerce').dt.strftime("%Y-%m-%d")
+            column_mapping = {
+                "user_id": "Guest",
+                "timestamp": "Registration date",
+                "expiration_date": "Last day",
+                "company": "Company",
+                "reason": "Visit Reason",
+                "document_type": "Document",
+                "document_number": "Document Number"
+            }
+            display_temp = display_temp.rename(columns=column_mapping)
+            ordered_columns = [
+                "Guest", "Registration date", "Last day", "Company", 
+                "Visit Reason", "Document", "Document Number"
+            ]
+            display_temp = display_temp[ordered_columns]
+            st.dataframe(
+                display_temp, 
+                hide_index=True, 
+                use_container_width=True
+            )
+        else:
+            st.info("No temporary users found in the database.")
+    else:
+        st.warning("Column 'is_temporary' not found or users table is empty.")
+
+with tabs[3]:
+    st.subheader(":material/person_off: Deactivated Users Archive")
+    
+    deactivated_raw = load_deactivated_users()
+    
+    if not deactivated_raw.empty:
+        deactivated_display = deactivated_raw.copy()
+        deactivated_display["arrived_at"] = pd.to_datetime(deactivated_display["arrived_at"], errors='coerce')
+        deactivated_display["arrived_at"] = deactivated_display["arrived_at"].dt.strftime("%Y-%m-%d %H:%M")
+        deactivated_display["expiration_date"] = pd.to_datetime(deactivated_display["expiration_date"], errors='coerce').dt.strftime("%Y-%m-%d")
+        column_mapping = {
+            "user_id": "Guest",
+            "arrived_at": "Registration date",
+            "expiration_date": "Last day",
+            "company": "Company",
+            "reason": "Visit Reason",
+            "document_type": "Document",
+            "document_number": "Document Number"
+        }
+        deactivated_display = deactivated_display.rename(columns=column_mapping)
+        ordered_columns = [
+            "Guest", "Registration date", "Last day", "Company", 
+            "Visit Reason", "Document", "Document Number"
+        ]
+        deactivated_display = deactivated_display[ordered_columns]
+        st.dataframe(
+            deactivated_display, 
+            hide_index=True, 
+            use_container_width=True
+        )
+    else:
+        st.info("The deactivated users list is empty.")
+
+with tabs[4]:
     if "load_all_entries" not in st.session_state:
         st.session_state.load_all_entries = False
 
